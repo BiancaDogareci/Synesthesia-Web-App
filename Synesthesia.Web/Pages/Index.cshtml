@@ -31,7 +31,7 @@
         align-items: center;
         color: white;
         text-shadow: 0 0 15px rgba(0,0,0,0.8);
-        background: linear-gradient(120deg, #16003B, #713ABE, #FF7F3F, yellow);
+        background: linear-gradient(120deg, #16003B, #713ABE, #f272e4, #4ec1de);
         background-size: 300% 300%;
         animation: gradientMove 15s ease infinite;
         text-align: center;
@@ -62,10 +62,13 @@
 </style>
 
 <div class="hero">
-    <h1 class="display-3 fw-bold">Synesthesia</h1>
+    <img src="~/images/logo.png" alt="Synesthesia Logo" />
+
+    @* <h1 class="display-3 fw-bold">Synesthesia</h1>
+
     <p class="lead">
         Transform your music into beautiful living fractals.
-    </p>
+    </p> *@
 
     <a class="btn btn-fractal" asp-page="/ImportAudio">
         Experiment with Fractals
