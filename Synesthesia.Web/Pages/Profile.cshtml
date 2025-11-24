@@ -1,0 +1,9 @@
+﻿@page
+@model Synesthesia.Web.Pages.ProfileModel
+@{
+    ViewData["Title"] = "Profile";
+}
+
+<h2>Profile Page</h2>
+<a  class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">Hello @User.Identity?.Name!</a>
+

@@ -10,9 +10,9 @@
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-0">
             <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index">Synesthesia.Web</a>
+                <a class="navbar-brand" asp-area="" asp-page="/Index">Synesthesia</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
@@ -31,17 +31,32 @@
             </div>
         </nav>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+
+    @{
+        // Get current page path
+        var currentPage = ViewContext.ActionDescriptor.DisplayName;
+        // Or relative page path
+        var pagePath = ViewContext.RouteData.Values["page"]?.ToString();
+    }
+
+    @if (pagePath != "/Index")
+    {
+        <div class="container">
+            <main role="main" class="flex-fill">
+                @RenderBody()
+            </main>
+        </div>
+    }
+    else
+    {
+        <main role="main" class="flex-fill">
             @RenderBody()
         </main>
-    </div>
+    }
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2025 - Synesthesia.Web - <a asp-area="" asp-page="/Privacy">Privacy</a>
-        </div>
-    </footer>
+    @* <footer class="text-center py-2">
+        <small>&copy; 2025 - Synesthesia - <a asp-area="" asp-page="/Privacy">Privacy</a></small>
+    </footer> *@
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
