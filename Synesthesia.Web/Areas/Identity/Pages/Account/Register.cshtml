@@ -23,26 +23,6 @@
         flex-direction: column;
     }
 
-    .hero {
-        flex: 1; /* fills main */
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        color: white;
-        text-shadow: 0 0 15px rgba(0,0,0,0.8);
-        background: linear-gradient(120deg, #16003B, #713ABE, #f272e4, #4ec1de);
-        background-size: 300% 300%;
-        animation: gradientMove 15s ease infinite;
-        text-align: center;
-    }
-
-    @@keyframes gradientMove {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-
     .login-card {
         width: 380px;
         background: rgba(255,255,255,0.15);
@@ -88,7 +68,7 @@
     }
 </style>
 
-<div class="hero">
+<div class="synesthesia-gradient">
     <div class="login-card">
         <h1>Create Account</h1>
 

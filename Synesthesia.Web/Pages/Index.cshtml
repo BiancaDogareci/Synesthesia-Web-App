@@ -23,26 +23,6 @@
         flex-direction: column;
     }
 
-    .hero {
-        flex: 1; /* fills main */
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        color: white;
-        text-shadow: 0 0 15px rgba(0,0,0,0.8);
-        background: linear-gradient(120deg, #16003B, #713ABE, #f272e4, #4ec1de);
-        background-size: 300% 300%;
-        animation: gradientMove 15s ease infinite;
-        text-align: center;
-    }
-
-    @@keyframes gradientMove {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-
     .btn-fractal {
         font-size: 1.4rem;
         padding: 14px 40px;
@@ -61,7 +41,7 @@
     }
 </style>
 
-<div class="hero">
+<div class="synesthesia-gradient">
     <img src="~/images/logo.png" alt="Synesthesia Logo" />
 
     @* <h1 class="display-3 fw-bold">Synesthesia</h1>
