@@ -39,7 +39,9 @@
         var pagePath = ViewContext.RouteData.Values["page"]?.ToString();
     }
 
-    @if (pagePath != "/Index")
+    @if (pagePath != "/Index" &&
+        pagePath != "/Account/Login" &&
+        pagePath != "/Account/Register")
     {
         <div class="container">
             <main role="main" class="flex-fill">
