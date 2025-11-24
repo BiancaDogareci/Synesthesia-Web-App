@@ -4,6 +4,87 @@
     ViewData["Title"] = "Profile";
 }
 
-<h2>Profile Page</h2>
-<a  class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">Hello @User.Identity?.Name!</a>
+<style>
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
 
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .profile-container {
+        flex: 1;
+        padding: 40px;
+        color: white;
+        text-shadow: 0 0 12px rgba(0,0,0,0.7);
+    }
+
+    .profile-img {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid rgba(255,255,255,0.7);
+        margin-bottom: 20px;
+        box-shadow: 0 0 22px rgba(0,0,0,0.6);
+    }
+
+    .username {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .bio {
+        margin-top: 15px;
+        font-size: 1.2rem;
+        max-width: 600px;
+    }
+
+    .edit-btn {
+        margin-top: 15px;
+        background: rgba(255,255,255,0.2);
+        border: 2px solid rgba(255,255,255,0.4);
+        color: white;
+        padding: 10px;
+        border-radius: 80px;
+        transition: 0.3s;
+        font-size: 1.1rem;
+        text-decoration: none !important;
+    }
+
+    .edit-btn:hover {
+        background: rgba(255,255,255,0.4);
+        color: #16003B;
+    }
+</style>
+
+<div class="synesthesia-gradient profile-container">
+
+    <img src="@(Url.Content(Model.ProfilePicture ?? "~/images/default_profile_white.png"))"
+         alt="Profile Picture"
+         class="profile-img" />
+
+    <div class="username">@Model.Username</div>
+
+    <div class="bio">
+        @(!string.IsNullOrWhiteSpace(Model.Bio) ? Model.Bio : "No bio set yet.")
+    </div>
+
+    <a class="edit-btn"
+       asp-area="Identity"
+       asp-page="/Account/Manage/Index">
+        Edit Profile
+    </a>
+
+</div>
