@@ -2,50 +2,101 @@
     const audio = document.getElementById("audio");
     const fractalSelect = document.getElementById("fractalType");
 
-    // placeholder visualizer initializer
+    let cleanup = null;
+
     window.initVisualizer = function (fractalType = "mandelbulb", containerId = "fractal-container") {
-        console.log("initVisualizer placeholder:", fractalType, containerId);
-
-        // placeholder canvas
         const container = document.getElementById(containerId);
-        if (!container) return () => { };
-        // cleanup any previous placeholder
-        const existing = container.querySelector(".fractal-placeholder");
-        if (existing) existing.remove();
+        if (!container) {
+            console.warn("No container found:", containerId);
+            return () => { };
+        }
 
-        const placeholder = document.createElement("div");
-        placeholder.className = "fractal-placeholder";
-        placeholder.style.width = "100%";
-        placeholder.style.height = "100%";
-        placeholder.style.display = "flex";
-        placeholder.style.alignItems = "center";
-        placeholder.style.justifyContent = "center";
-        placeholder.style.color = "white";
-        placeholder.style.fontSize = "18px";
-        placeholder.textContent = `Visualizer: ${fractalType} (placeholder)`;
+        container.innerHTML = "";
 
-        container.appendChild(placeholder);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
 
-        return function cleanup() {
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(
+            60,
+            container.clientWidth / container.clientHeight,
+            0.1,
+            1000
+        );
+        camera.position.z = 3;
+
+        // test geometry
+        const geometry = new THREE.IcosahedronGeometry(1, 4);
+        const material = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.3,
+            metalness: 0.6,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+        const light = new THREE.PointLight(0xffffff, 1.2);
+        light.position.set(3, 3, 5);
+        scene.add(light);
+
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+
+        const source = audioContext.createMediaElementSource(audio);
+        source.connect(analyser);
+        analyser.connect(audioContext.destination);
+
+        const freqData = new Uint8Array(analyser.frequencyBinCount);
+
+        function onResize() {
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            renderer.setSize(w, h);
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+        }
+        window.addEventListener("resize", onResize);
+
+        let running = true;
+
+        function animate() {
+            if (!running) return;
+
+            requestAnimationFrame(animate);
+
+            analyser.getByteFrequencyData(freqData);
+            let bass = freqData[1] / 255;
+
+            mesh.rotation.x += 0.003 + bass * 0.02;
+            mesh.rotation.y += 0.002 + bass * 0.03;
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        return function cleanupVisualizer() {
+            running = false;
+            window.removeEventListener("resize", onResize);
+
             try {
-                placeholder.remove();
-            } catch (e) { }
+                renderer.dispose();
+                geometry.dispose();
+                material.dispose();
+                container.innerHTML = "";
+            } catch (err) {
+                console.warn("Cleanup issue:", err);
+            }
         };
     };
-
-    let cleanup = null;
 
     if (audio) {
         audio.addEventListener("play", () => {
             if (cleanup) cleanup();
-            cleanup = window.initVisualizer(fractalSelect?.value || "mandelbulb", "fractal-container");
+            cleanup = window.initVisualizer(fractalSelect.value, "fractal-container");
         });
-
-        // start visualizer if already playing
-        if (!audio.paused && !audio.ended) {
-            if (cleanup) cleanup();
-            cleanup = window.initVisualizer(fractalSelect?.value || "mandelbulb", "fractal-container");
-        }
     }
 
     fractalSelect?.addEventListener("change", (ev) => {
