@@ -1,0 +1,45 @@
+﻿@page
+@model Synesthesia.Web.Pages.StudioModel
+@{
+    ViewData["Title"] = "Fractal Studio";
+}
+
+<div class="container py-4">
+    <h2>Experiment with Fractals</h2>
+
+    <form method="post" enctype="multipart/form-data" asp-page-handler="Upload" class="mb-3">
+        <div class="mb-2">
+            <input type="file" name="audioFile" accept=".mp3,.wav" required />
+        </div>
+        <button class="btn btn-primary" type="submit">Upload & Play</button>
+    </form>
+
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="alert alert-info">@Model.Message</div>
+    }
+
+    @if (!string.IsNullOrEmpty(Model.AudioPath))
+    {
+        <hr />
+        <audio id="audio" src="@Model.AudioPath" controls crossorigin="anonymous"></audio>
+
+        <div class="mt-3">
+            <label for="fractalType" class="form-label">Choose Fractal:</label>
+            <select id="fractalType" class="form-select" style="max-width:300px;">
+                <option value="mandelbulb" selected>Mandelbulb 3D</option>
+                <option value="mandelbrot">Mandelbrot 2D</option>
+                <option value="julia">Julia 2D</option>
+            </select>
+        </div>
+
+        <hr />
+
+        <div id="fractal-container" style="width:100%; height:70vh; background:#000;"></div>
+    }
+
+</div>
+
+@section Scripts {
+    <script src="~/js/fractal-studio.js"></script>
+}
