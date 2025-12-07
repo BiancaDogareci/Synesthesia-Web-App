@@ -26,15 +26,116 @@
         );
         camera.position.z = 3;
 
-        // test geometry
-        const geometry = new THREE.IcosahedronGeometry(1, 4);
-        const material = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            roughness: 0.3,
-            metalness: 0.6,
-        });
-        const mesh = new THREE.Mesh(geometry, material);
-        scene.add(mesh);
+        // shader uniforms
+        const uniforms = {
+            iTime: { value: 0 },
+            iResolution: { value: new THREE.Vector3(container.clientWidth, container.clientHeight, 1) },
+            bassLevel: { value: 0 },
+            trebleLevel: { value: 0 },
+            lfo: { value: 0 },
+            zoom: { value: 1.0 },
+            iBoom: { value: 0 },
+            speed: { value: 1.0 },
+            pulse: { value: 1.0 },
+            rotation: { value: 0.0 }
+        };
+
+        // quad vertex shader
+        const vertexShader = `
+            void main() { 
+                gl_Position = vec4(position, 1.0); 
+            }
+        `;
+
+        // fragment shader
+        const fragmentShader = `
+
+        precision highp float;
+        uniform float iTime, bassLevel, trebleLevel, lfo, zoom, iBoom, speed, pulse, rotation;
+        uniform vec3 iResolution;
+
+        float mandelbulbDE(vec3 pos) {
+            vec3 z = pos, c = pos;
+            float dr = 1.0, r = 0.0;
+            float bassImpact = pow(bassLevel, 0.3) * 4.0;
+            float power = 8.0 + bassImpact + iBoom * 5.0 + sin(iTime * 0.2 + lfo) * 2.0 + trebleLevel * 1.5;
+            for (int i = 0; i < 12; i++) {
+                r = length(z);
+                if (r > 4.0) break;
+                float th = acos(z.z / r), ph = atan(z.y, z.x);
+                float zr = pow(r, power - 1.0);
+                dr = pow(r, power - 1.0) * power * dr + 1.0;
+                float nt = th * power, np = ph * power;
+                z = zr * vec3(sin(nt) * cos(np), sin(nt) * sin(np), cos(nt)) + c;
+            }
+            return 0.5 * log(r) * r / dr;
+        }
+
+        float rayMarch(vec3 ro, vec3 rd) {
+            float t = 0.0;
+            for (int i = 0; i < 100; i++) {
+                vec3 p = ro + rd * t;
+                float d = mandelbulbDE(p);
+                if (d < 0.001) break;
+                t += d;
+                if (t > 50.0) break;
+            }
+            return t;
+        }
+
+        void main() {
+            vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
+            vec3 ro = vec3(0.0, 0.0, 4.0 / zoom);
+            vec3 rd = normalize(vec3(uv, -1.5));
+
+            float ang = iTime * 0.15 + trebleLevel * 3.0 + iBoom * 2.0 + rotation;
+            mat3 rotY = mat3(
+                cos(ang), 0.0, sin(ang),
+                0.0, 1.0, 0.0,
+                -sin(ang), 0.0, cos(ang)
+            );
+            ro = rotY * ro;
+            rd = rotY * rd;
+
+            float t = rayMarch(ro, rd);
+            if (t > 49.9) {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                return;
+            }
+
+            vec3 p = ro + rd * t;
+            vec3 eps = vec3(0.001, 0, 0);
+            vec3 nor = normalize(vec3(
+                mandelbulbDE(p + eps.xyy) - mandelbulbDE(p - eps.xyy),
+                mandelbulbDE(p + eps.yxy) - mandelbulbDE(p - eps.yxy),
+                mandelbulbDE(p + eps.yyx) - mandelbulbDE(p - eps.yyx)
+            ));
+
+            vec3 light = normalize(vec3(1.0, 1.0, 1.0));
+            float diff = clamp(dot(nor, light), 0.0, 1.0);
+
+            vec3 col = vec3(
+                0.5 + 0.5 * sin(iTime + p.x * 2.0 + iBoom * 3.0),
+                0.5 + 0.5 * cos(iTime * 1.2 + p.y * 3.0 + bassLevel * 4.0),
+                diff
+            );
+            col *= (diff * 1.3 + 0.2);
+            col = pow(col, vec3(0.4545));
+            gl_FragColor = vec4(col * pulse, 1.0);
+        }
+        `;
+
+        // quad
+        const quad = new THREE.Mesh(
+            new THREE.PlaneGeometry(2, 2),
+            new THREE.ShaderMaterial({
+                vertexShader,
+                fragmentShader,
+                uniforms
+            })
+        );
+        scene.add(quad);
+
 
         const light = new THREE.PointLight(0xffffff, 1.2);
         light.position.set(3, 3, 5);
@@ -66,11 +167,23 @@
 
             requestAnimationFrame(animate);
 
+            // Get audio data
             analyser.getByteFrequencyData(freqData);
-            let bass = freqData[1] / 255;
 
-            mesh.rotation.x += 0.003 + bass * 0.02;
-            mesh.rotation.y += 0.002 + bass * 0.03;
+            // Calculate bass (0–10)
+            let bassSum = 0;
+            for (let i = 0; i < 10; i++) bassSum += freqData[i];
+            let bass = bassSum / 10 / 255;
+
+            // Calculate treble
+            let trebleSum = 0;
+            for (let i = 11; i < freqData.length; i++) trebleSum += freqData[i];
+            let treble = trebleSum / (freqData.length - 11) / 255;
+
+            uniforms.bassLevel.value = bass;
+            uniforms.trebleLevel.value = treble;
+            uniforms.iTime.value += 0.016;
+            uniforms.zoom.value = 1.0 + Math.pow(bass, 0.3);
 
             renderer.render(scene, camera);
         }
@@ -83,8 +196,6 @@
 
             try {
                 renderer.dispose();
-                geometry.dispose();
-                material.dispose();
                 container.innerHTML = "";
             } catch (err) {
                 console.warn("Cleanup issue:", err);
