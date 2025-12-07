@@ -4,43 +4,191 @@
     ViewData["Title"] = "Fractal Studio";
 }
 
-<div class="container py-4">
+<style>
+    html, body {
+        height: 100%; /* full viewport height */
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    main {
+        flex: 1; /* take remaining space between header and footer */
+        display: flex;
+        flex-direction: column;
+    }
+
+    .btn-syn {
+        background: rgba(255,255,255,0.2);
+        border: 2px solid rgba(255,255,255,0.4);
+        color: white;
+        padding: 10px;
+        border-radius: 80px;
+        transition: 0.3s;
+        font-size: 1.1rem;
+    }
+
+    .btn-syn:hover {
+        background: rgba(255,255,255,0.4);
+        color: #16003B;
+    }
+
+    .btn-syn-success {
+        background: rgba(0, 255, 120, 0.25);
+        border: 2px solid rgba(0, 255, 120, 0.5);
+        color: #eaffea;
+        padding: 10px;
+        border-radius: 80px;
+        transition: 0.3s;
+        font-size: 1.1rem;
+    }
+
+    .btn-syn-success:hover {
+        background: rgba(0, 255, 120, 0.45);
+        color: #102b12;
+    }
+
+    .btn-syn:disabled,
+    .btn-syn-success:disabled {
+        opacity: 0.5; /* make it look disabled */
+        cursor: not-allowed; /* change cursor */
+        background: rgba(255,255,255,0.2); /* keep base background */
+        color: rgba(255,255,255,0.7); /* slightly faded text */
+        border-color: rgba(255,255,255,0.4);
+    }
+
+    /* Remove hover effect when disabled */
+    .btn-syn:disabled:hover,
+    .btn-syn-success:disabled:hover {
+        background: rgba(255,255,255,0.2);
+        color: rgba(255,255,255,0.7);
+    }
+
+    a {
+        color: #ffe;
+    }
+
+    a:hover {
+        color: #88e5fc;
+    }
+
+    .form-floating > label {
+        color: lightslategray !important;
+    }
+
+    .custom-file-wrapper {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+        cursor: pointer;
+    }
+
+    .custom-file-input {
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+        pointer-events: none;
+    }
+
+    .custom-file-label {
+        background: rgba(255,255,255,0.2);
+        border: 2px solid rgba(255,255,255,0.4);
+        color: white;
+        padding: 10px;
+        border-radius: 80px;
+        transition: 0.3s;
+        font-size: 1.1rem;
+        display: inline-block;
+        cursor: pointer;
+        text-align: center;
+        width: 100%;
+    }
+
+    .custom-file-label:hover {
+        background: rgba(255,255,255,0.4);
+        color: #16003B;
+    }
+
+    .syn-label {
+        color: #e0e0ff;
+        font-weight: 500;
+        margin-bottom: 8px;
+        display: block;
+    }
+</style>
+
+<div class="synesthesia-gradient-top-left">
     <h2>Experiment with Fractals</h2>
 
-    <form method="post" enctype="multipart/form-data" asp-page-handler="Upload" class="mb-3">
-        <div class="mb-2">
-            <input type="file" name="audioFile" accept=".mp3,.wav" required />
+    <form method="post" enctype="multipart/form-data" asp-page-handler="Upload" class="mb-3 mt-3">
+        <div style="display: flex; gap: 10px; width: 40vw;">
+            <!-- Choose file button -->
+            <div class="custom-file-wrapper" style="flex: 1;">
+                <label class="custom-file-label" id="fileLabel" for="audioInput">Choose Audio File</label>
+                <input id="audioInput" type="file" name="audioFile" accept=".mp3,.wav" class="custom-file-input" required>
+            </div>
+
+            <!-- Upload button -->
+            <button id="uploadBtn" class="btn-syn" type="submit" style="flex: 1;" disabled>
+                Upload
+            </button>
         </div>
-        <button class="btn btn-primary" type="submit">Upload & Play</button>
     </form>
 
-    @if (!string.IsNullOrEmpty(Model.Message))
+    @* @if (!string.IsNullOrEmpty(Model.Message) && Model.Message.StartsWith("Failed"))
     {
-        <div class="alert alert-info">@Model.Message</div>
-    }
+        <div class="alert alert-danger">@Model.Message</div>
+    } *@
 
     @if (!string.IsNullOrEmpty(Model.AudioPath))
     {
-        <hr />
-        <audio id="audio" src="@Model.AudioPath" controls crossorigin="anonymous"></audio>
+        <div class="mb-3" style="display: flex; align-items: center; gap: 15px;">
+            <audio id="audio" src="@Model.AudioPath" controls crossorigin="anonymous"></audio>
 
-        <div class="mt-3">
-            <label for="fractalType" class="form-label">Choose Fractal:</label>
-            <select id="fractalType" class="form-select" style="max-width:300px;">
+            <select id="fractalType" style="border-radius: 15px; padding: 8px 12px;">
                 <option value="mandelbulb" selected>Mandelbulb 3D</option>
                 <option value="mandelbrot">Mandelbrot 2D</option>
                 <option value="julia">Julia 2D</option>
             </select>
         </div>
 
-        <hr />
-
-        <div id="fractal-container" style="width:100%; height:70vh; background:#000;"></div>
+        <div id="fractal-container" style="width:100%; height:90vh; background:#000; border-radius: 80px; overflow:hidden;"></div>
     }
-
 </div>
 
 @section Scripts {
     <script src="~/lib/three/three.min.js"></script>
     <script src="~/js/fractal-studio.js"></script>
+
+    <script>
+        const fileInput = document.getElementById('audioInput');
+        const fileLabel = document.getElementById('fileLabel');
+        const uploadBtn = document.getElementById('uploadBtn');
+
+        // Initially disabled
+        uploadBtn.disabled = true;
+        uploadBtn.style.opacity = 0.5;
+
+        fileInput.addEventListener('change', (e) => {
+            const fileName = e.target.files[0]?.name || "Choose Audio File";
+            fileLabel.textContent = fileName;
+
+            if (fileName !== "Choose Audio File") {
+                uploadBtn.disabled = false;
+                uploadBtn.style.opacity = 1; // make it look enabled
+            } else {
+                uploadBtn.disabled = true;
+                uploadBtn.style.opacity = 0.5; // make it look disabled
+            }
+        });
+    </script>
 }
