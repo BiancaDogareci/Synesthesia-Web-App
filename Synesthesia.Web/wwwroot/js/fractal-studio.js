@@ -213,6 +213,104 @@
 
             `;
         }
+        else if (fractalType === "mandelbrot") {
+    fragmentShader = `
+        precision highp float;
+
+        uniform float iTime;
+        uniform float bassLevel;
+        uniform float trebleLevel;
+        uniform float pulse;
+        uniform vec3 iResolution;
+
+        vec3 hsb2rgb(in vec3 c) {
+            vec3 rgb = clamp(abs(mod(c.x * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+            return c.z * mix(vec3(1.0), rgb, c.y);
+        }
+
+        // More complex, dynamic color palette
+        vec3 palette(float t) {
+            // Apply music and time to hue and saturation
+            float hue = t + iTime * 0.05 + trebleLevel * 0.1;
+            float sat = 0.8 + 0.2 * sin(iTime * 0.7) + bassLevel * 0.3;
+            float val = 0.5 + 0.5 * cos(t * 10.0 + iTime * 2.0); // Pulsing value
+
+            // Use the HSB/HSL model for smoother, more vibrant colors
+            vec3 col = hsb2rgb(vec3(hue, sat, val));
+
+            // Soften the color near the center (t=0)
+            col *= smoothstep(0.0, 0.1, t);
+
+            return col;
+        }
+
+        void main() {
+            vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
+
+            // More aggressive, music-driven zoom
+            float zoom =
+                1.3 +
+                0.15 * sin(iTime * 0.2) +
+                0.40 * pow(bassLevel, 1.0);
+
+            uv /= zoom;
+
+            // Center of the fractal moves slowly, enhanced by treble
+            vec2 centerOffset = vec2(
+                0.25 + 0.05 * sin(iTime * 0.1) + trebleLevel * 0.01,
+                0.15 + 0.05 * cos(iTime * 0.13)
+            );
+
+            // Stronger bass-driven translation/vibration
+            uv += centerOffset;
+            uv += 0.05 * bassLevel * vec2(
+                sin(iTime * 5.0),
+                cos(iTime * 3.5)
+            );
+
+            // Mandelbrot C parameter
+            vec2 c = uv;
+            vec2 z = vec2(0.0);
+
+            // Slightly lower maxIter, relies on smooth coloring for detail
+            int maxIter = int(
+                120.0 +
+                bassLevel * 80.0 +
+                trebleLevel * 50.0
+            );
+
+            int i;
+            for (i = 0; i < maxIter; i++) {
+                float x = z.x * z.x - z.y * z.y + c.x;
+                float y = 2.0 * z.x * z.y + c.y;
+                z = vec2(x, y);
+
+                if (dot(z, z) > 16.0) break; // Increased bail-out radius for better exterior rendering
+            }
+
+            // --- SMOOTH ITERATION COUNT (The Key to Pretty Coloring) ---
+            float t = 0.0;
+            if (i < maxIter) {
+                // log(log(length(z))/log(2.0))/log(2.0)
+                // This formula linearizes the escape time for smooth coloring
+                float log_zn = log(dot(z, z)) / 2.0;
+                float nu = log(log_zn / log(2.0)) / log(2.0); 
+                t = float(i) + 1.0 - nu; 
+                t /= float(maxIter); // Normalize to 0.0 - 1.0
+            } else {
+                // Inside the set (colored black/dark)
+                t = 0.0;
+            }
+
+            vec3 col = palette(t);
+
+            // Final lighting/pulse application
+            col *= pulse;
+
+            gl_FragColor = vec4(col, 1.0);
+        }
+    `;
+}
 
 
         // quad
