@@ -6,7 +6,7 @@
 
 <style>
     html, body {
-        height: 100%; /* full viewport height */
+        height: 100%;
         margin: 0;
         padding: 0;
     }
@@ -18,7 +18,7 @@
     }
 
     main {
-        flex: 1; /* take remaining space between header and footer */
+        flex: 1;
         display: flex;
         flex-direction: column;
     }
@@ -55,14 +55,13 @@
 
     .btn-syn:disabled,
     .btn-syn-success:disabled {
-        opacity: 0.5; /* make it look disabled */
-        cursor: not-allowed; /* change cursor */
-        background: rgba(255,255,255,0.2); /* keep base background */
-        color: rgba(255,255,255,0.7); /* slightly faded text */
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: rgba(255,255,255,0.2);
+        color: rgba(255,255,255,0.7);
         border-color: rgba(255,255,255,0.4);
     }
 
-    /* Remove hover effect when disabled */
     .btn-syn:disabled:hover,
     .btn-syn-success:disabled:hover {
         background: rgba(255,255,255,0.2);
@@ -124,34 +123,53 @@
         margin-bottom: 8px;
         display: block;
     }
+
+    .alert {
+        border-radius: 20px;
+        padding: 12px 20px;
+        margin-bottom: 15px;
+        backdrop-filter: blur(10px);
+    }
+
+    .alert-success {
+        background: rgba(0, 255, 120, 0.2);
+        border: 2px solid rgba(0, 255, 120, 0.4);
+        color: #eaffea;
+    }
+
+    .alert-danger {
+        background: rgba(255, 50, 50, 0.2);
+        border: 2px solid rgba(255, 50, 50, 0.4);
+        color: #ffeeee;
+    }
 </style>
 
 <div class="synesthesia-gradient-top-left">
     <img src="~/images/studio_title_slim.png" alt="Experiment with Fractals Title" style="width: 425px; height: auto;" />
 
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="alert @(Model.Message.Contains("successfully") ? "alert-success" : "alert-danger")">
+            @Model.Message
+        </div>
+    }
+
     <form method="post" enctype="multipart/form-data" asp-page-handler="Upload" class="mb-3 mt-3">
         <div style="display: flex; gap: 10px; width: 40vw;">
-            <!-- Choose file button -->
             <div class="custom-file-wrapper" style="flex: 1;">
                 <label class="custom-file-label" id="fileLabel" for="audioInput">Choose Audio File</label>
                 <input id="audioInput" type="file" name="audioFile" accept=".mp3,.wav" class="custom-file-input" required>
             </div>
 
-            <!-- Upload button -->
             <button id="uploadBtn" class="btn-syn" type="submit" style="flex: 1;" disabled>
                 Upload
             </button>
         </div>
     </form>
 
-    @* @if (!string.IsNullOrEmpty(Model.Message) && Model.Message.StartsWith("Failed"))
-    {
-        <div class="alert alert-danger">@Model.Message</div>
-    } *@
-
     @if (!string.IsNullOrEmpty(Model.AudioPath))
     {
-        <div class="mb-3" style="display: flex; align-items: center; gap: 15px;">
+        <div class="mb-3" style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
             <audio id="audio" src="@Model.AudioPath" controls crossorigin="anonymous"></audio>
 
             <select id="fractalType" style="border-radius: 15px; padding: 8px 12px;">
@@ -159,6 +177,28 @@
                 <option value="mandelbrot">Mandelbrot 2D</option>
                 <option value="julia">Julia 2D</option>
             </select>
+
+            @if (User.Identity?.IsAuthenticated == true && Model.CurrentAudioId != null && !Model.IsCurrentAudioSaved)
+            {
+                <form method="post" asp-page-handler="SaveToProfile">
+                    <input type="hidden" name="audioId" value="@Model.CurrentAudioId" />
+                    <button type="submit" class="btn-syn-success">
+                        Save to Profile
+                    </button>
+                </form>
+            }
+            else if (User.Identity?.IsAuthenticated == true && Model.IsCurrentAudioSaved)
+            {
+                <span class="btn-syn-success" style="cursor: default;">
+                    ✓ Saved to Profile
+                </span>
+            }
+            else if (User.Identity?.IsAuthenticated == false)
+            {
+                <a class="btn-syn" asp-area="Identity" asp-page="/Account/Login">
+                    Login to Save
+                </a>
+            }
         </div>
 
         <div id="fractal-container" style="width:100%; height:100vh; background:#000; border-radius: 80px; overflow:hidden;"></div>
@@ -174,7 +214,6 @@
         const fileLabel = document.getElementById('fileLabel');
         const uploadBtn = document.getElementById('uploadBtn');
 
-        // Initially disabled
         uploadBtn.disabled = true;
         uploadBtn.style.opacity = 0.5;
 
@@ -184,10 +223,10 @@
 
             if (fileName !== "Choose Audio File") {
                 uploadBtn.disabled = false;
-                uploadBtn.style.opacity = 1; // make it look enabled
+                uploadBtn.style.opacity = 1;
             } else {
                 uploadBtn.disabled = true;
-                uploadBtn.style.opacity = 0.5; // make it look disabled
+                uploadBtn.style.opacity = 0.5;
             }
         });
     </script>
