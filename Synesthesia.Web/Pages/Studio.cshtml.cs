@@ -27,10 +27,14 @@ namespace Synesthesia.Web.Pages
         public string? AudioPath { get; set; }
 
         [BindProperty]
+        public string? UploadedOriginalFileName { get; set; }
+
+        [BindProperty]
         public string? Message { get; set; }
 
         public Guid? CurrentAudioId { get; set; }
         public bool IsCurrentAudioSaved { get; set; }
+        public string? OriginalFileName => AudioPath != null ? System.IO.Path.GetFileName(AudioPath) : null;
 
         public async Task OnGetAsync(Guid? audioId)
         {
@@ -85,38 +89,17 @@ namespace Synesthesia.Web.Pages
                 return Page();
             }
 
-            try
-            {
-                var userId = User?.Identity?.IsAuthenticated == true
-                    ? User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty
-                    : string.Empty;
-
-                var audioRecord = new AudioFile
-                {
-                    UserId = userId,
-                    FileName = audioFile.FileName,
-                    FilePath = $"/uploads/audio/{newFileName}",
-                    Format = ext.TrimStart('.')
-                };
-
-                _db.AudioFiles.Add(audioRecord);
-                await _db.SaveChangesAsync();
-
-                AudioPath = audioRecord.FilePath;
-                CurrentAudioId = audioRecord.Id;
-                IsCurrentAudioSaved = false;
-                Message = "Uploaded successfully. Click 'Save to Profile' to add to your history.";
-            }
-            catch (Exception ex)
-            {
-                AudioPath = $"/uploads/audio/{newFileName}";
-                Message = "Uploaded but failed to save record in DB: " + ex.Message;
-            }
+            // Only assign properties for UI rendering, DO NOT save to DB
+            AudioPath = $"/uploads/audio/{newFileName}";
+            UploadedOriginalFileName = audioFile.FileName; // store original filename
+            CurrentAudioId = null; // No DB record yet
+            IsCurrentAudioSaved = false;
+            Message = "Audio uploaded. Click 'Save to Profile' to add to your history.";
 
             return Page();
         }
 
-        public async Task<IActionResult> OnPostSaveToProfileAsync(Guid audioId)
+        public async Task<IActionResult> OnPostSaveToProfileAsync(string audioPath, string originalFileName)
         {
             if (!User?.Identity?.IsAuthenticated ?? true)
             {
@@ -125,50 +108,53 @@ namespace Synesthesia.Web.Pages
             }
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            Console.WriteLine($"Attempting to save audio {audioId} for user {userId}");
 
             try
             {
-                var audioFile = await _db.AudioFiles
-                    .FirstOrDefaultAsync(a => a.Id == audioId);
+                // Check if the file already exists in DB
+                var existing = await _db.AudioFiles
+                    .FirstOrDefaultAsync(a => a.FilePath == audioPath);
 
-                if (audioFile == null)
+                if (existing != null)
                 {
-                    Message = "Audio file not found.";
-                    Console.WriteLine($"Audio file {audioId} not found in database");
+                    if (existing.UserId != userId)
+                    {
+                        Message = "This audio was uploaded by another user.";
+                        return Page();
+                    }
+
+                    // Already saved by this user
+                    AudioPath = existing.FilePath;
+                    CurrentAudioId = existing.Id;
+                    IsCurrentAudioSaved = true;
+                    Message = "Audio already saved to your profile.";
                     return Page();
                 }
 
-                Console.WriteLine($"Found audio file. Current UserId: '{audioFile.UserId}'");
-
-                // Update the UserId if it was empty (anonymous upload)
-                if (string.IsNullOrEmpty(audioFile.UserId) || audioFile.UserId == string.Empty)
+                // Create new record
+                var audioRecord = new AudioFile
                 {
-                    audioFile.UserId = userId;
-                    audioFile.Update();
-                    await _db.SaveChangesAsync();
-                    Console.WriteLine($"Updated audio file with UserId: {userId}");
-                }
-                else if (audioFile.UserId != userId)
-                {
-                    Message = "You don't have permission to save this audio.";
-                    Console.WriteLine($"Permission denied. Audio UserId: {audioFile.UserId}, Current UserId: {userId}");
-                    return Page();
-                }
+                    UserId = userId,
+                    FileName = originalFileName,
+                    FilePath = audioPath,
+                    Format = Path.GetExtension(audioPath).TrimStart('.')
+                };
 
-                AudioPath = audioFile.FilePath;
-                CurrentAudioId = audioFile.Id;
+                _db.AudioFiles.Add(audioRecord);
+                await _db.SaveChangesAsync();
+
+                AudioPath = audioRecord.FilePath;
+                CurrentAudioId = audioRecord.Id;
                 IsCurrentAudioSaved = true;
                 Message = "Audio saved to your profile successfully!";
-                Console.WriteLine("Audio saved successfully");
             }
             catch (Exception ex)
             {
                 Message = "Failed to save audio to profile: " + ex.Message;
-                Console.WriteLine($"Error saving audio: {ex.Message}");
             }
 
             return Page();
         }
+
     }
 }

@@ -31,18 +31,20 @@
         border-radius: 80px;
         transition: 0.3s;
         font-size: 1.1rem;
+        text-decoration: none;
     }
 
     .btn-syn:hover {
         background: rgba(255,255,255,0.4);
         color: #16003B;
+        text-decoration: none;
     }
 
     .btn-syn-success {
         background: rgba(0, 255, 120, 0.25);
         border: 2px solid rgba(0, 255, 120, 0.5);
         color: #eaffea;
-        padding: 10px;
+        padding: 8px;
         border-radius: 80px;
         transition: 0.3s;
         font-size: 1.1rem;
@@ -142,17 +144,22 @@
         border: 2px solid rgba(255, 50, 50, 0.4);
         color: #ffeeee;
     }
+
+    .rounded-audio {
+        border-radius: 80px;
+        overflow: hidden;
+    }
 </style>
 
 <div class="synesthesia-gradient-top-left">
     <img src="~/images/studio_title_slim.png" alt="Experiment with Fractals Title" style="width: 425px; height: auto;" />
 
-    @if (!string.IsNullOrEmpty(Model.Message))
+    @* @if (!string.IsNullOrEmpty(Model.Message))
     {
         <div class="alert @(Model.Message.Contains("successfully") ? "alert-success" : "alert-danger")">
             @Model.Message
         </div>
-    }
+    } *@
 
     <form method="post" enctype="multipart/form-data" asp-page-handler="Upload" class="mb-3 mt-3">
         <div style="display: flex; gap: 10px; width: 40vw;">
@@ -170,18 +177,19 @@
     @if (!string.IsNullOrEmpty(Model.AudioPath))
     {
         <div class="mb-3" style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-            <audio id="audio" src="@Model.AudioPath" controls crossorigin="anonymous"></audio>
+            <audio id="audio" src="@Model.AudioPath" controls crossorigin="anonymous" class="rounded-audio"></audio>
 
             <select id="fractalType" style="border-radius: 15px; padding: 8px 12px;">
-                <option value="mandelbulb" selected>Mandelbulb 3D</option>
+                <option value="julia" selected>Julia 2D</option>
                 <option value="mandelbrot">Mandelbrot 2D</option>
-                <option value="julia">Julia 2D</option>
+                <option value="mandelbulb">Mandelbulb 3D</option>
             </select>
 
-            @if (User.Identity?.IsAuthenticated == true && Model.CurrentAudioId != null && !Model.IsCurrentAudioSaved)
+            @if (User.Identity?.IsAuthenticated == true && !Model.IsCurrentAudioSaved)
             {
                 <form method="post" asp-page-handler="SaveToProfile">
-                    <input type="hidden" name="audioId" value="@Model.CurrentAudioId" />
+                    <input type="hidden" name="audioPath" value="@Model.AudioPath" />
+                    <input type="hidden" name="originalFileName" value="@Model.UploadedOriginalFileName" />
                     <button type="submit" class="btn-syn-success">
                         Save to Profile
                     </button>
@@ -229,5 +237,10 @@
                 uploadBtn.style.opacity = 0.5;
             }
         });
+    </script>
+
+    <script>
+        const audio = document.getElementById('audio');
+        audio.volume = 0.3;
     </script>
 }

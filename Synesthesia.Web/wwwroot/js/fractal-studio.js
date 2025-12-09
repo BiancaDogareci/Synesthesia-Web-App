@@ -4,7 +4,7 @@
 
     let cleanup = null;
 
-    window.initVisualizer = function (fractalType = "mandelbulb", containerId = "fractal-container") {
+    window.initVisualizer = function (fractalType = "julia", containerId = "fractal-container") {
         const container = document.getElementById(containerId);
         if (!container) {
             console.warn("No container found:", containerId);
@@ -86,15 +86,24 @@
 
                 void main() {
                     vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
-                    vec3 ro = vec3(0.0, 0.0, 4.0 / zoom);
+
+                    // --- Adjusted camera zoom ---
+                    float smoothZoom = 4.0 / (1.0 + 0.2 * bassLevel + 0.1 * iBoom); // smaller music influence
+                    vec3 ro = vec3(0.0, 0.0, smoothZoom);
                     vec3 rd = normalize(vec3(uv, -1.5));
 
-                    float ang = iTime * 0.15 + trebleLevel * 3.0 + iBoom * 2.0 + rotation;
+                    // --- Adjusted rotation ---
+                    float ang = iTime * 0.1                 // slower base rotation
+                              + trebleLevel * 0.5          // scaled down treble influence
+                              + iBoom * 0.3                // scaled down iBoom influence
+                              + rotation * 0.5;            // scaled down rotation parameter
+
                     mat3 rotY = mat3(
                         cos(ang), 0.0, sin(ang),
                         0.0, 1.0, 0.0,
                         -sin(ang), 0.0, cos(ang)
                     );
+
                     ro = rotY * ro;
                     rd = rotY * rd;
 
@@ -214,101 +223,98 @@
             `;
         }
         else if (fractalType === "mandelbrot") {
-    fragmentShader = `
-        precision highp float;
+            fragmentShader = `
+                precision highp float;
 
-        uniform float iTime;
-        uniform float bassLevel;
-        uniform float trebleLevel;
-        uniform float pulse;
-        uniform vec3 iResolution;
+                uniform float iTime;
+                uniform float bassLevel;
+                uniform float trebleLevel;  // ignored
+                uniform float pulse;
+                uniform vec3 iResolution;
 
-        vec3 hsb2rgb(in vec3 c) {
-            vec3 rgb = clamp(abs(mod(c.x * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
-            return c.z * mix(vec3(1.0), rgb, c.y);
-        }
+                // ------------------------------------------------------------
+                // Simple rainbow color
+                // ------------------------------------------------------------
+                vec3 rainbow(float t) {
+                    float r = 0.5 + 0.5 * sin(6.28318 * t + 0.0);
+                    float g = 0.5 + 0.5 * sin(6.28318 * t + 2.1);
+                    float b = 0.5 + 0.5 * sin(6.28318 * t + 4.2);
+                    return vec3(r, g, b);
+                }
 
-        // More complex, dynamic color palette
-        vec3 palette(float t) {
-            // Apply music and time to hue and saturation
-            float hue = t + iTime * 0.05 + trebleLevel * 0.1;
-            float sat = 0.8 + 0.2 * sin(iTime * 0.7) + bassLevel * 0.3;
-            float val = 0.5 + 0.5 * cos(t * 10.0 + iTime * 2.0); // Pulsing value
+                void main() {
 
-            // Use the HSB/HSL model for smoother, more vibrant colors
-            vec3 col = hsb2rgb(vec3(hue, sat, val));
+                    // --------------------------------------------------------
+                    // Viewport — static, zoomed out, centered
+                    // --------------------------------------------------------
+                    vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
+                    uv *= 2.8;
+                    uv.x -= 0.5;
 
-            // Soften the color near the center (t=0)
-            col *= smoothstep(0.0, 0.1, t);
+                    // --------------------------------------------------------
+                    // Classic Mandelbrot (power = 2.0)
+                    // --------------------------------------------------------
+                    float power = 2.0;
 
-            return col;
-        }
+                    // --------------------------------------------------------
+                    // Inverted bass-only iteration control
+                    //
+                    // bass = 0 → ~50 iterations (sharp)
+                    // bass = 1 → ~5 iterations (blobby)
+                    //
+                    // Mapping: 50 - bass * 45
+                    // --------------------------------------------------------
+                    float bass = clamp(bassLevel, 0.0, 1.0);
+                    int maxIter = int(50.0 - bass * 45.0);
 
-        void main() {
-            vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
+                    // --------------------------------------------------------
+                    // Tiny parameter offset from bass for gentle breathing
+                    // --------------------------------------------------------
+                    vec2 paramK = 0.002 * bass * vec2(
+                        sin(iTime * 0.8),
+                        cos(iTime * 0.7)
+                    );
 
-            // More aggressive, music-driven zoom
-            float zoom =
-                1.3 +
-                0.15 * sin(iTime * 0.2) +
-                0.40 * pow(bassLevel, 1.0);
+                    vec2 c = uv;
+                    vec2 z = vec2(0.0);
+                    float escapedR = 0.0;
 
-            uv /= zoom;
+                    int i;
 
-            // Center of the fractal moves slowly, enhanced by treble
-            vec2 centerOffset = vec2(
-                0.25 + 0.05 * sin(iTime * 0.1) + trebleLevel * 0.01,
-                0.15 + 0.05 * cos(iTime * 0.13)
-            );
+                    // --------------------------------------------------------
+                    // Mandelbrot iteration loop
+                    // --------------------------------------------------------
+                    for (i = 0; i < maxIter; i++) {
+                        float x = z.x*z.x - z.y*z.y;
+                        float y = 2.0*z.x*z.y;
+                        z = vec2(x, y) + c + paramK;
 
-            // Stronger bass-driven translation/vibration
-            uv += centerOffset;
-            uv += 0.05 * bassLevel * vec2(
-                sin(iTime * 5.0),
-                cos(iTime * 3.5)
-            );
+                        float r2 = dot(z, z);
+                        if (r2 > 4.0) {
+                            escapedR = r2;
+                            break;
+                        }
+                    }
 
-            // Mandelbrot C parameter
-            vec2 c = uv;
-            vec2 z = vec2(0.0);
+                    // Escape time normalized
+                    float t = float(i) / float(maxIter);
 
-            // Slightly lower maxIter, relies on smooth coloring for detail
-            int maxIter = int(
-                120.0 +
-                bassLevel * 80.0 +
-                trebleLevel * 50.0
-            );
+                    // --------------------------------------------------------
+                    // Color shaping
+                    // --------------------------------------------------------
+                    vec3 base = mix(vec3(1.0, 0.3, 0.6), rainbow(t), smoothstep(0.0, 0.15, t));
 
-            int i;
-            for (i = 0; i < maxIter; i++) {
-                float x = z.x * z.x - z.y * z.y + c.x;
-                float y = 2.0 * z.x * z.y + c.y;
-                z = vec2(x, y);
+                    float shadow = pow(t, 0.4);
+                    float bassFlash = 0.9 + 0.4 * bass * sin(iTime * 3.0 + pulse * 1.5);
 
-                if (dot(z, z) > 16.0) break; // Increased bail-out radius for better exterior rendering
-            }
+                    vec3 col = base * shadow * bassFlash;
 
-            // --- SMOOTH ITERATION COUNT (The Key to Pretty Coloring) ---
-            float t = 0.0;
-            if (i < maxIter) {
-                // log(log(length(z))/log(2.0))/log(2.0)
-                // This formula linearizes the escape time for smooth coloring
-                float log_zn = log(dot(z, z)) / 2.0;
-                float nu = log(log_zn / log(2.0)) / log(2.0); 
-                t = float(i) + 1.0 - nu; 
-                t /= float(maxIter); // Normalize to 0.0 - 1.0
-            } else {
-                // Inside the set (colored black/dark)
-                t = 0.0;
-            }
+                    // Gentle static vignette
+                    float vign = exp(-2.5 * dot(uv, uv));
+                    col *= (0.95 + 0.2 * vign);
 
-            vec3 col = palette(t);
-
-            // Final lighting/pulse application
-            col *= pulse;
-
-            gl_FragColor = vec4(col, 1.0);
-        }
+                    gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+                }
     `;
 }
 
