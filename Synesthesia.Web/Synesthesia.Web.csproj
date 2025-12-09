@@ -21,6 +21,7 @@
     <Folder Include="Services\" />
     <Folder Include="wwwroot\images\" />
     <Folder Include="wwwroot\uploads\audio\" />
+    <Folder Include="wwwroot\uploads\profiles\" />
   </ItemGroup>
 
 </Project>

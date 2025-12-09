@@ -1,0 +1,241 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Edit Profile";
+}
+
+<style>
+    /* --- CRITICAL FIX START --- */
+    /* These styles override the default "Box" created by your _Layout.cshtml */
+    
+    /* 1. Reset the default page margins */
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden; /* Prevent side scrolling */
+    }
+
+    /* 2. Apply the gradient to the main background */
+    body {
+        background: linear-gradient(135deg, #C539B4, #F27BBD); 
+        background-attachment: fixed;
+        background-size: cover;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* 3. Force the layout container to be full width and invisible */
+    .container, .container-fluid {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: transparent !important;
+    }
+
+    /* 4. Make the main content area fill the screen and center the card */
+    main {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh; /* Takes up full height */
+        width: 100%;
+        padding-top: 60px; /* Space for navbar if you have one */
+        padding-bottom: 40px;
+    }
+    /* --- CRITICAL FIX END --- */
+
+    /* Card Styling */
+    .profile-card {
+        width: 100%;
+        max-width: 420px;
+        background: rgba(255, 255, 255, 0.15); /* Glass effect */
+        padding: 40px 30px;
+        border-radius: 30px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: white;
+        margin: auto; /* Ensure centering */
+    }
+
+    h1 {
+        text-align: center;
+        margin-bottom: 25px;
+        font-weight: 700;
+        color: white;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        font-size: 2rem;
+    }
+
+    /* Inputs */
+    .form-control {
+        background: rgba(240, 240, 240, 0.85);
+        border: none;
+        border-radius: 12px;
+        height: 45px;
+        font-size: 0.95rem;
+    }
+    
+    textarea.form-control {
+        height: auto;
+    }
+
+    .form-floating > label {
+        color: #666 !important;
+        font-size: 0.9rem;
+    }
+
+    /* Button */
+    .btn-syn {
+        background: rgba(255,255,255,0.25);
+        border: 1px solid rgba(255,255,255,0.6);
+        color: white;
+        padding: 10px;
+        border-radius: 50px;
+        transition: all 0.3s ease;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-top: 15px;
+        width: 100%;
+    }
+
+    .btn-syn:hover {
+        background: white;
+        color: #C539B4;
+        box-shadow: 0 0 15px rgba(255,255,255,0.5);
+    }
+
+    a { color: #fff; text-decoration: underline; font-size: 0.9rem;}
+    a:hover { color: #f0f0f0; }
+
+    /* Profile Image */
+    .profile-img-preview {
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid rgba(255,255,255,0.9);
+        margin: 0 auto 20px;
+        display: block;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    /* Custom File Input */
+    .custom-file-wrapper {
+        position: relative;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    
+    .custom-file-input {
+        display: none;
+    }
+
+    .custom-file-label {
+        background: rgba(255,255,255,0.25);
+        color: white;
+        padding: 6px 20px;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: 0.3s;
+        border: 1px solid rgba(255,255,255,0.4);
+        display: inline-block;
+        font-size: 0.9rem;
+    }
+    
+    .custom-file-label:hover {
+        background: rgba(255,255,255,0.5);
+    }
+</style>
+
+<div class="profile-card">
+    <h1>Edit Profile</h1>
+
+    <form id="profile-form" method="post" enctype="multipart/form-data">
+        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+        @if (!string.IsNullOrEmpty(Model.StatusMessage))
+        {
+            <div class="alert alert-success mb-3 p-2" style="border-radius: 10px; font-size: 0.9rem;">@Model.StatusMessage</div>
+        }
+
+        <img id="profileImgPreview" 
+             src="@(Url.Content(Model.Input.ProfilePicture ?? "~/images/default_profile_white.png"))" 
+             alt="Profile Picture" 
+             class="profile-img-preview" />
+
+        <div class="custom-file-wrapper">
+            <label class="custom-file-label" id="fileLabel" for="profilePicInput">
+                Choose Picture
+            </label>
+            <input id="profilePicInput" 
+                   type="file" 
+                   name="Input.ProfilePictureFile" 
+                   accept="image/*" 
+                   class="custom-file-input">
+        </div>
+
+        <div class="form-floating mb-3">
+            <input asp-for="Username" class="form-control" placeholder="Username" disabled />
+            <label asp-for="Username"></label>
+        </div>
+
+        <div class="form-floating mb-3">
+            <input asp-for="Input.Email" class="form-control" placeholder="Email" />
+            <label asp-for="Input.Email"></label>
+            <span asp-validation-for="Input.Email" class="text-danger"></span>
+            
+            @if (!Model.IsEmailConfirmed)
+            {
+                 <div class="mt-1 text-end">
+                    <button id="email-verification" type="submit" asp-page-handler="SendVerificationEmail" 
+                            class="btn btn-link text-white p-0" style="text-decoration:none; font-size: 0.8rem;">
+                        Send verification email &rarr;
+                    </button>
+                </div>
+            }
+        </div>
+
+        <div class="form-floating mb-3">
+            <input asp-for="Input.PhoneNumber" class="form-control" placeholder="Phone" />
+            <label asp-for="Input.PhoneNumber"></label>
+            <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+        </div>
+
+        <div class="form-floating mb-3">
+            <textarea asp-for="Input.Bio" class="form-control" placeholder="Bio" style="height: 100px"></textarea>
+            <label asp-for="Input.Bio"></label>
+            <span asp-validation-for="Input.Bio" class="text-danger"></span>
+        </div>
+
+        <button id="update-profile-button" type="submit" class="btn-syn">Save Changes</button>
+
+        <div class="mt-3 text-center">
+            <a asp-page="./ChangePassword">Change Password</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Update label when file is selected
+        const fileInput = document.getElementById('profilePicInput');
+        const fileLabel = document.getElementById('fileLabel');
+        const imgPreview = document.getElementById('profileImgPreview');
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                fileLabel.textContent = "Picture Selected";
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imgPreview.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
+}
