@@ -209,6 +209,101 @@
             }
         </div>
 
+        <div id="mandelbrot-desc" style="width: 90%; max-width: 800px; margin: 20px auto; color: #e0e0ff; font-family: monospace;">
+            <details style="background: rgba(0,0,0,0.4); border-radius: 20px; padding: 15px; backdrop-filter: blur(10px);">
+                <summary style="cursor: pointer; font-weight: bold; font-size: 1.2rem;">Mandelbrot Fractal Technical Description</summary>
+                <div style="margin-top: 10px; line-height: 1.6;">
+                    <p><strong>Formula:</strong></p>
+                    <pre>zₙ₊₁ = zₙ² + c</pre>
+                    <p>Here, <code>z</code> and <code>c</code> are complex numbers. Iteratively apply the formula until |z| &gt; 2 or the maximum number of iterations is reached.</p>
+
+                    <p><strong>How it works:</strong></p>
+                    <ul>
+                        <li>Each pixel corresponds to a complex number <code>c</code>.</li>
+                        <li>We iterate <code>z = z² + c</code> up to <code>maxIter</code> times.</li>
+                        <li>The number of iterations before escape is normalized to determine the color.</li>
+                        <li>Colors are blended using a soft rainbow gradient with a pink core.</li>
+                        <li>Vignette and gamma correction are applied for aesthetic smoothing.</li>
+                    </ul>
+
+                    <p><strong>Audio-driven parameters:</strong></p>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <th style="text-align:left; padding:4px;">Parameter</th>
+                            <th style="text-align:left; padding:4px;">Effect</th>
+                        </tr>
+                        <tr>
+                            <td><code>bassLevel</code></td>
+                            <td>Controls max iterations: high bass → fewer iterations (blobby), low bass → sharper fractal.</td>
+                        </tr>
+                        <tr>
+                            <td><code>pulse</code></td>
+                            <td>Overall brightness multiplier.</td>
+                        </tr>
+                        <tr>
+                            <td><code>iTime</code></td>
+                            <td>Animates subtle color changes over time.</td>
+                        </tr>
+                    </table>
+                </div>
+            </details>
+        </div>
+
+        <div id="julia-desc" class="fractal-desc" style="width: 90%; max-width: 800px; margin: 20px auto; color: #e0e0ff; font-family: monospace; display: none;">
+            <details style="background: rgba(0,0,0,0.4); border-radius: 20px; padding: 15px; backdrop-filter: blur(10px);">
+                <summary style="cursor: pointer; font-weight: bold; font-size: 1.2rem;">Julia Fractal Technical Description</summary>
+                <div style="margin-top: 10px; line-height: 1.6;">
+                    <p><strong>Formula:</strong></p>
+                    <pre>zₙ₊₁ = zₙ² + c(t)</pre>
+                    <p>Here, <code>z</code> is a complex number and <code>c</code> is an animated complex constant. Iteratively apply until |z| &gt; 2 or max iterations reached.</p>
+                    <p><strong>How it works:</strong></p>
+                    <ul>
+                        <li>The constant <code>c</code> is animated over time and influenced by bass and treble.</li>
+                        <li>Each pixel corresponds to a starting value of <code>z</code>.</li>
+                        <li>Colors are calculated based on iteration count and a rainbow gradient.</li>
+                    </ul>
+                    <p><strong>Audio-driven parameters:</strong></p>
+                    <ul>
+                        <li><code>bassLevel</code>: Subtle wobble of the fractal shape.</li>
+                        <li><code>trebleLevel</code>: Shimmers in color and small movement in <code>c</code>.</li>
+                        <li><code>pulse</code>: Brightness multiplier.</li>
+                        <li><code>iTime</code>: Drives smooth animation of fractal and colors.</li>
+                    </ul>
+                </div>
+            </details>
+        </div>
+
+        <div id="mandelbulb-desc" class="fractal-desc" style="width: 90%; max-width: 800px; margin: 20px auto; color: #e0e0ff; font-family: monospace; display: none;">
+            <details style="background: rgba(0,0,0,0.4); border-radius: 20px; padding: 15px; backdrop-filter: blur(10px);">
+                <summary style="cursor: pointer; font-weight: bold; font-size: 1.2rem;">Mandelbulb 3D Fractal Technical Description</summary>
+                <div style="margin-top: 10px; line-height: 1.6;">
+                    <p><strong>Distance Estimation Formula:</strong></p>
+                    <pre>
+                    r = length(z)
+                    z = r^(power-1) * (sin(th*power)*cos(ph*power),
+                                       sin(th*power)*sin(ph*power),
+                                       cos(th*power)) + c
+                    DE = 0.5 * log(r) * r / dr
+                     </pre>
+                    <p>Used in ray marching to render the 3D Mandelbulb.</p>
+                    <p><strong>How it works:</strong></p>
+                    <ul>
+                        <li>Each ray marches through space using the distance estimator (<code>mandelbulbDE</code>).</li>
+                        <li>Normals are estimated using small offsets, then shaded using a simple lighting model.</li>
+                        <li>Colors are animated with sin/cos waves and audio influences.</li>
+                    </ul>
+                    <p><strong>Audio-driven parameters:</strong></p>
+                    <ul>
+                        <li><code>bassLevel</code>: Influences fractal power and small rotations.</li>
+                        <li><code>trebleLevel</code>: Small rotation speed and color shimmer.</li>
+                        <li><code>iBoom</code>: Impacts power and scale.</li>
+                        <li><code>pulse</code>: Brightness multiplier.</li>
+                        <li><code>rotation</code>: Additional rotation control.</li>
+                    </ul>
+                </div>
+            </details>
+        </div>
+
         <div id="fractal-container" style="width:100%; height:100vh; background:#000; border-radius: 80px; overflow:hidden;"></div>
     }
 </div>
@@ -237,6 +332,29 @@
                 uploadBtn.style.opacity = 0.5;
             }
         });
+    </script>
+
+    <script>
+        const fractalSelect = document.getElementById('fractalType');
+        const fractalDescs = {
+            'mandelbrot': document.getElementById('mandelbrot-desc'),
+            'julia': document.getElementById('julia-desc'),
+            'mandelbulb': document.getElementById('mandelbulb-desc')
+        };
+
+        function updateFractalDescription() {
+            const value = fractalSelect.value;
+            // Hide all first
+            Object.values(fractalDescs).forEach(div => div.style.display = 'none');
+            // Show selected
+            if (fractalDescs[value]) fractalDescs[value].style.display = 'block';
+        }
+
+        // Initial check
+        updateFractalDescription();
+
+        // Update on change
+        fractalSelect.addEventListener('change', updateFractalDescription);
     </script>
 
     <script>

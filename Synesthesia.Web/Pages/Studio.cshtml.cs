@@ -19,23 +19,29 @@ namespace Synesthesia.Web.Pages
 
         public StudioModel(IWebHostEnvironment env, ApplicationDbContext db)
         {
-            _env = env;
-            _db = db;
+            _env = env; // _env gives access to server paths (needed to save uploaded files to wwwroot/uploads/audio)
+            _db = db; // _db is the Entity Framework database context
         }
 
-        [BindProperty]
+
+
+        // PROPERTIES
+        [BindProperty] // binds Razor form inputs to a specific property
         public string? AudioPath { get; set; }
 
         [BindProperty]
-        public string? UploadedOriginalFileName { get; set; }
+        public string? UploadedOriginalFileName { get; set; } // user’s original file name
 
         [BindProperty]
-        public string? Message { get; set; }
+        public string? Message { get; set; } // stores feedback messages
 
         public Guid? CurrentAudioId { get; set; }
         public bool IsCurrentAudioSaved { get; set; }
-        public string? OriginalFileName => AudioPath != null ? System.IO.Path.GetFileName(AudioPath) : null;
+        public string? OriginalFileName => AudioPath != null ? System.IO.Path.GetFileName(AudioPath) : null; // filename from AudioPath (unique gibblerish)
 
+
+
+        // Runs when the page is first loaded
         public async Task OnGetAsync(Guid? audioId)
         {
             if (audioId.HasValue)
@@ -73,7 +79,7 @@ namespace Synesthesia.Web.Pages
                 Directory.CreateDirectory(uploadsFolder);
             }
 
-            var newFileName = Guid.NewGuid().ToString("N") + ext;
+            var newFileName = Guid.NewGuid().ToString("N") + ext; // unique gibblerish
             var filePath = Path.Combine(uploadsFolder, newFileName);
 
             try
@@ -89,10 +95,10 @@ namespace Synesthesia.Web.Pages
                 return Page();
             }
 
-            // Only assign properties for UI rendering, DO NOT save to DB
+            // Only assign properties for UI rendering, we dont save to DB
             AudioPath = $"/uploads/audio/{newFileName}";
-            UploadedOriginalFileName = audioFile.FileName; // store original filename
-            CurrentAudioId = null; // No DB record yet
+            UploadedOriginalFileName = audioFile.FileName;
+            CurrentAudioId = null;
             IsCurrentAudioSaved = false;
             Message = "Audio uploaded. Click 'Save to Profile' to add to your history.";
 
@@ -117,11 +123,11 @@ namespace Synesthesia.Web.Pages
 
                 if (existing != null)
                 {
-                    if (existing.UserId != userId)
-                    {
-                        Message = "This audio was uploaded by another user.";
-                        return Page();
-                    }
+                    //if (existing.UserId == userId)
+                    //{
+                    //    Message = "This audio was uploaded by this user.";
+                    //    return Page();
+                    //}
 
                     // Already saved by this user
                     AudioPath = existing.FilePath;
