@@ -27,7 +27,7 @@
         background: rgba(255,255,255,0.2);
         border: 2px solid rgba(255,255,255,0.4);
         color: white;
-        padding: 8px;
+        padding: 4px;
         border-radius: 80px;
         transition: 0.3s;
         font-size: 1.1rem;
@@ -149,19 +149,221 @@
         border-radius: 80px;
         overflow: hidden;
     }
+
+
+
+    #studio-stage {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    #fractal-container {
+        position: absolute;
+        inset: 0;
+        background: black;
+    }
+
+    #fractal-settings {
+        position: absolute;
+        top: 50%;
+        right: 0;
+        transform: translateY(-50%) translateX(0);
+        width: 300px;
+        height: 95vh;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: rgba(15, 10, 35, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 18px 0 0 18px;
+        backdrop-filter: blur(14px);
+        transition: transform 0.3s ease;
+        overflow-y: auto;
+    }
+
+    #fractal-settings input[type="color"],
+    #fractal-settings input[type="range"],
+    #fractal-settings select,
+    #fractal-settings label {
+        flex-shrink: 0;
+    }
+
+    #fractal-settings.closed {
+        transform: translateY(-50%) translateX(300px);
+    }
+
+    .menu-toggle {
+        position: absolute;
+        top: 10%;
+        right: 300px;
+        transform: translateY(-50%);
+        width: 30px;
+        height: 100px;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.3);
+        background: rgba(30, 30, 60, 0.7);
+        color: white;
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: right 0.3s ease, transform 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 4px;
+    }
+
+    .menu-toggle.closed {
+        right: 0;
+        transform: translateY(-50%) rotate(180deg);
+    }
+
+    #fractal-settings .syn-label {
+        font-size: 0.85rem;
+        margin-bottom: 2px;
+    }
+
+    #fractal-settings input[type="range"],
+    #fractal-settings input[type="color"],
+    #fractal-settings select {
+        width: 100%;
+    }
+
+    #fractal-settings input[type="range"] {
+        height: 4px;
+    }
+
+    #fractal-settings select {
+        background: rgba(255,255,255,0.15);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 10px;
+        padding: 6px;
+    }
+
+    #fractal-settings::-webkit-scrollbar {
+        width: 0;
+    }
+
+    #fractal-settings select {
+        background: rgba(15,10,35,0.95);
+        color: #e0e0ff;
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 10px;
+        padding: 6px;
+    }
+
+    #fractal-settings select option {
+        color: #e0e0ff;
+        background: rgba(15,10,35,0.95);
+    }
+
+    #fractal-settings input[type="color"] {
+        -webkit-appearance: none;
+        border: 0.5px solid rgba(255,255,255,0.25);
+        border-radius: 6px;
+        padding: 0;
+        width: 100%;
+        height: 28px;
+        cursor: pointer;
+    }
+
+    .settings-divider {
+        height: 1px;
+        background: linear-gradient( to right, transparent, rgba(255,255,255,0.25), transparent );
+        margin: 8px 0;
+    }
+
+    .settings-info {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        border-radius: 15px;
+    }
+
+    .settings-info details {
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 12px;
+        padding: 6px 8px;
+    }
+
+    .settings-info summary {
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #e0e0ff;
+        list-style: none;
+    }
+
+    .settings-info summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .settings-info .details-body {
+        margin-top: 6px;
+        font-size: 0.75rem;
+        line-height: 1.4;
+        color: #cfd3ff;
+    }
+
+    .settings-info pre {
+        background: rgba(0,0,0,0.35);
+        border-radius: 8px;
+        padding: 6px;
+        font-size: 0.7rem;
+        overflow-x: auto;
+    }
+
+    .settings-audio {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .settings-audio audio {
+        width: 100%;
+        height: auto;
+        border-radius: 12px;
+        -webkit-appearance: menulist-button;
+    }
+
+    #audio-upload-bar {
+        position: absolute;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 20;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+
+    #audio-upload-bar .btn-syn {
+        padding: 4px 10px;
+        font-size: 0.85rem;
+        border-radius: 80px;
+    }
+
+    #audio-upload-bar .custom-file-wrapper {
+        width: auto;
+    }
+
+    #julia-settings,
+    #mandelbrot-settings,
+    #mandelbulb-settings {
+        display: none;
+        flex-direction: column;
+        gap: 6px;
+    }
 </style>
 
-<div class="synesthesia-gradient-top-left">
-    <img src="~/images/studio_title_slim.png" alt="Experiment with Fractals Title" style="width: 425px; height: auto;" />
+<div style="padding-bottom:0"> @* overwrite bottom padding from default setting set in site.css for synesthesia-gradient-top-left *@
+    @* <img src="~/images/studio_title_slim.png" alt="Experiment with Fractals Title" style="width: 425px; height: auto;" /> *@
 
-    @* @if (!string.IsNullOrEmpty(Model.Message))
-    {
-        <div class="alert @(Model.Message.Contains("successfully") ? "alert-success" : "alert-danger")">
-            @Model.Message
-        </div>
-    } *@
-
-    <form method="post" enctype="multipart/form-data" asp-page-handler="Upload" class="mb-3 mt-3">
+    @* <form method="post" enctype="multipart/form-data" asp-page-handler="Upload" class="mb-3 mt-3">
         <div style="display: flex; gap: 10px; width: 40vw;">
             <div class="custom-file-wrapper" style="flex: 1;">
                 <label class="custom-file-label" id="fileLabel" for="audioInput">Choose Audio File</label>
@@ -172,140 +374,162 @@
                 Upload
             </button>
         </div>
-    </form>
+    </form> *@
 
-    @if (!string.IsNullOrEmpty(Model.AudioPath))
-    {
-        <div class="mb-3" style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-            <audio id="audio" src="@Model.AudioPath" controls crossorigin="anonymous" class="rounded-audio"></audio>
+    <div id="studio-stage">
+        <div id="fractal-container" style="width:100vw; height:100vh; background:#000; overflow:hidden;"></div>
 
-            <select id="fractalType" style="border-radius: 15px; padding: 8px 12px;">
-                <option value="julia" selected>Julia 2D</option>
-                <option value="mandelbrot">Mandelbrot 2D</option>
-                <option value="mandelbulb">Mandelbulb 3D</option>
-            </select>
+        <form method="post"
+              enctype="multipart/form-data"
+              asp-page-handler="Upload"
+              id="audio-upload-bar">
 
-            @if (User.Identity?.IsAuthenticated == true && !Model.IsCurrentAudioSaved)
-            {
-                <form method="post" asp-page-handler="SaveToProfile">
-                    <input type="hidden" name="audioPath" value="@Model.AudioPath" />
-                    <input type="hidden" name="originalFileName" value="@Model.UploadedOriginalFileName" />
-                    <button type="submit" class="btn-syn-success">
-                        Save to Profile
-                    </button>
-                </form>
-            }
-            else if (User.Identity?.IsAuthenticated == true && Model.IsCurrentAudioSaved)
-            {
-                <span class="btn-syn-success" style="cursor: default;">
-                    ✓ Saved to Profile
-                </span>
-            }
-            else if (User.Identity?.IsAuthenticated == false)
-            {
-                <a class="btn-syn" asp-area="Identity" asp-page="/Account/Login">
-                    Login to Save
-                </a>
-            }
-        </div>
+            <div class="custom-file-wrapper">
+                <label class="btn-syn" id="fileLabel" for="audioInput">
+                    Choose Audio
+                </label>
 
-        <div id="mandelbrot-desc" style="width: 90%; max-width: 800px; margin: 20px auto; color: #e0e0ff; font-family: monospace;">
-            <details style="background: rgba(0,0,0,0.4); border-radius: 20px; padding: 15px; backdrop-filter: blur(10px);">
-                <summary style="cursor: pointer; font-weight: bold; font-size: 1.2rem;">Mandelbrot Fractal Technical Description</summary>
-                <div style="margin-top: 10px; line-height: 1.6;">
-                    <p><strong>Formula:</strong></p>
-                    <pre>zₙ₊₁ = zₙ² + c</pre>
-                    <p>Here, <code>z</code> and <code>c</code> are complex numbers. Iteratively apply the formula until |z| &gt; 2 or the maximum number of iterations is reached.</p>
+                <input id="audioInput"
+                       type="file"
+                       name="audioFile"
+                       accept=".mp3,.wav"
+                       class="custom-file-input"
+                       required />
+            </div>
 
-                    <p><strong>How it works:</strong></p>
-                    <ul>
-                        <li>Each pixel corresponds to a complex number <code>c</code>.</li>
-                        <li>We iterate <code>z = z² + c</code> up to <code>maxIter</code> times.</li>
-                        <li>The number of iterations before escape is normalized to determine the color.</li>
-                        <li>Colors are blended using a soft rainbow gradient with a pink core.</li>
-                        <li>Vignette and gamma correction are applied for aesthetic smoothing.</li>
-                    </ul>
+            <button id="uploadBtn"
+                    class="btn-syn"
+                    type="submit"
+                    disabled>
+                Upload
+            </button>
+        </form>
 
-                    <p><strong>Audio-driven parameters:</strong></p>
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <tr>
-                            <th style="text-align:left; padding:4px;">Parameter</th>
-                            <th style="text-align:left; padding:4px;">Effect</th>
-                        </tr>
-                        <tr>
-                            <td><code>bassLevel</code></td>
-                            <td>Controls max iterations: high bass → fewer iterations (blobby), low bass → sharper fractal.</td>
-                        </tr>
-                        <tr>
-                            <td><code>pulse</code></td>
-                            <td>Overall brightness multiplier.</td>
-                        </tr>
-                        <tr>
-                            <td><code>iTime</code></td>
-                            <td>Animates subtle color changes over time.</td>
-                        </tr>
-                    </table>
+        <div id="fractal-settings">
+            <div class="settings-audio">
+                <div id="audio-container" style="display: flex; flex-direction: column; gap: 6px;">
+                    <span id="audio-placeholder" style="color: #ccc; text-align: center;">
+                        UPLOAD AN AUDIO FILE FIRST
+                    </span>
+                    <audio id="audio" controls crossorigin="anonymous" class="rounded-audio" style="display: none;"></audio>
                 </div>
-            </details>
+
+                <select id="fractalType" style="border-radius: 15px; padding: 6px 10px; margin-top: 6px;">
+                    <option value="julia" selected>Julia 2D</option>
+                    <option value="mandelbrot">Mandelbrot 2D</option>
+                    <option value="mandelbulb">Mandelbulb 3D</option>
+                </select>
+
+                @if (User.Identity?.IsAuthenticated == true && !Model.IsCurrentAudioSaved)
+                {
+                    <form method="post" asp-page-handler="SaveToProfile" style="margin-top:6px;">
+                        <input type="hidden" name="audioPath" value="@Model.AudioPath" />
+                        <input type="hidden" name="originalFileName" value="@Model.UploadedOriginalFileName" />
+                        <button type="submit" class="btn-syn-success" style="width:100%;">Save to Profile</button>
+                    </form>
+                }
+                else if (User.Identity?.IsAuthenticated == true && Model.IsCurrentAudioSaved)
+                {
+                    <span class="btn-syn-success" style="cursor: default; display:block; margin-top:6px; text-align:center;">
+                        ✓ Saved to Profile
+                    </span>
+                }
+                else if (User.Identity?.IsAuthenticated == false)
+                {
+                    <a class="btn-syn" asp-area="Identity" asp-page="/Account/Login" style="display:block; margin-top:6px; text-align:center; font-size: 0.85rem;">
+                        Login to Save
+                    </a>
+                }
+
+                <div class="settings-divider"></div>
+            </div>
+
+            <div id="julia-settings">
+                <label class="syn-label">Iterations</label>
+                <input type="range" min="50" max="800" value="300" id="iterSlider">
+
+                <label class="syn-label">Bass Strength</label>
+                <input type="range" min="0" max="5" step="0.1" value="1" id="bassSlider">
+
+                <label class="syn-label">Treble Strength</label>
+                <input type="range" min="0" max="5" step="0.1" value="1" id="trebleSlider">
+
+                <label class="syn-label">Primary Color</label>
+                <input type="color" id="primaryColor" value="#ff4d99">
+
+                <label class="syn-label">Secondary Color</label>
+                <input type="color" id="secondaryColor" value="#3399ff">
+
+                <label class="syn-label">
+                    <input type="checkbox" id="rainbowToggle">
+                    Rainbow mode
+                </label>
+
+                <label class="syn-label">Julia Set</label>
+                <select onchange="updateFractalConfig({ julia: juliaPresets[this.value] })"
+                        style="border-radius: 15px;"
+                >
+                    <option value="classic">−0.4 − 0.59i</option>
+                    <option value="dragon">0.37 + 0.1i</option>
+                    <option value="snowflake">0.355 + 0.355i</option>
+                    <option value="spiral">0.34 − 0.05i</option>
+                    <option value="lotus">−0.54 + 0.54i</option>
+                    <option value="chaos">0 + 0.8i</option>
+                </select>
+            </div>
+
+            <div id="mandelbrot-settings">
+                <!-- future Mandelbrot settings go here -->
+                <p style="color: #ccc; font-size: 0.85rem;">Mandelbrot settings coming soon...</p>
+            </div>
+
+            <div id="mandelbulb-settings">
+                <!-- future Mandelbulb settings go here -->
+                <p style="color: #ccc; font-size: 0.85rem;">Mandelbulb settings coming soon...</p>
+            </div>
+
+            <div class="settings-info">
+                <div class="settings-divider"></div>
+
+                <details data-fractal="mandelbrot">
+                    <summary>Mandelbrot Info</summary>
+                    <div class="details-body">
+                        <p><strong>Formula:</strong></p>
+                        <pre>zₙ₊₁ = zₙ² + c</pre>
+                        <p>Each pixel is a complex <code>c</code>. Escape time determines color.</p>
+                    </div>
+                </details>
+
+                <details data-fractal="julia">
+                    <summary>Julia Info</summary>
+                    <div class="details-body">
+                        <p><strong>About Julia Sets:</strong></p>
+                        <p>Julia sets are 2D fractals derived from the Mandelbrot set. Each Julia set is generated by fixing a complex constant <code>c</code> and iterating the formula <code>zₙ₊₁ = zₙ² + c</code> for every pixel. While the Mandelbrot set varies <code>c</code> per pixel, a Julia set keeps <code>c</code> constant, producing unique patterns.</p>
+
+                        <p><strong>Parameters:</strong></p>
+                        <ul>
+                            <li><strong>Iterations:</strong> Number of times the formula is applied per pixel. Higher values reveal more detail and sharper fractal boundaries.</li>
+                            <li><strong>Bass Strength:</strong> Makes the fractal move and pulse with low notes in the music.</li>
+                            <li><strong>Treble Strength:</strong> Makes the fractal shimmer and change colors with high notes in the music.</li>
+                            <li><strong>Primary & Secondary Colors:</strong> Define the main color palette of the fractal, only for when rainbow mode is deactivated.</li>
+                            <li><strong>Rainbow Mode:</strong> When enabled, colors continuously cycle across the spectrum, enhanced by treble and bass audio levels.</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <details data-fractal="mandelbulb">
+                    <summary>Mandelbulb Info</summary>
+                    <div class="details-body">
+                        <p>3D distance-estimated fractal rendered via ray marching.</p>
+                    </div>
+                </details>
+            </div>
         </div>
 
-        <div id="julia-desc" class="fractal-desc" style="width: 90%; max-width: 800px; margin: 20px auto; color: #e0e0ff; font-family: monospace; display: none;">
-            <details style="background: rgba(0,0,0,0.4); border-radius: 20px; padding: 15px; backdrop-filter: blur(10px);">
-                <summary style="cursor: pointer; font-weight: bold; font-size: 1.2rem;">Julia Fractal Technical Description</summary>
-                <div style="margin-top: 10px; line-height: 1.6;">
-                    <p><strong>Formula:</strong></p>
-                    <pre>zₙ₊₁ = zₙ² + c(t)</pre>
-                    <p>Here, <code>z</code> is a complex number and <code>c</code> is an animated complex constant. Iteratively apply until |z| &gt; 2 or max iterations reached.</p>
-                    <p><strong>How it works:</strong></p>
-                    <ul>
-                        <li>The constant <code>c</code> is animated over time and influenced by bass and treble.</li>
-                        <li>Each pixel corresponds to a starting value of <code>z</code>.</li>
-                        <li>Colors are calculated based on iteration count and a rainbow gradient.</li>
-                    </ul>
-                    <p><strong>Audio-driven parameters:</strong></p>
-                    <ul>
-                        <li><code>bassLevel</code>: Subtle wobble of the fractal shape.</li>
-                        <li><code>trebleLevel</code>: Shimmers in color and small movement in <code>c</code>.</li>
-                        <li><code>pulse</code>: Brightness multiplier.</li>
-                        <li><code>iTime</code>: Drives smooth animation of fractal and colors.</li>
-                    </ul>
-                </div>
-            </details>
-        </div>
-
-        <div id="mandelbulb-desc" class="fractal-desc" style="width: 90%; max-width: 800px; margin: 20px auto; color: #e0e0ff; font-family: monospace; display: none;">
-            <details style="background: rgba(0,0,0,0.4); border-radius: 20px; padding: 15px; backdrop-filter: blur(10px);">
-                <summary style="cursor: pointer; font-weight: bold; font-size: 1.2rem;">Mandelbulb 3D Fractal Technical Description</summary>
-                <div style="margin-top: 10px; line-height: 1.6;">
-                    <p><strong>Distance Estimation Formula:</strong></p>
-                    <pre>
-                    r = length(z)
-                    z = r^(power-1) * (sin(th*power)*cos(ph*power),
-                                       sin(th*power)*sin(ph*power),
-                                       cos(th*power)) + c
-                    DE = 0.5 * log(r) * r / dr
-                     </pre>
-                    <p>Used in ray marching to render the 3D Mandelbulb.</p>
-                    <p><strong>How it works:</strong></p>
-                    <ul>
-                        <li>Each ray marches through space using the distance estimator (<code>mandelbulbDE</code>).</li>
-                        <li>Normals are estimated using small offsets, then shaded using a simple lighting model.</li>
-                        <li>Colors are animated with sin/cos waves and audio influences.</li>
-                    </ul>
-                    <p><strong>Audio-driven parameters:</strong></p>
-                    <ul>
-                        <li><code>bassLevel</code>: Influences fractal power and small rotations.</li>
-                        <li><code>trebleLevel</code>: Small rotation speed and color shimmer.</li>
-                        <li><code>iBoom</code>: Impacts power and scale.</li>
-                        <li><code>pulse</code>: Brightness multiplier.</li>
-                        <li><code>rotation</code>: Additional rotation control.</li>
-                    </ul>
-                </div>
-            </details>
-        </div>
-
-        <div id="fractal-container" style="width:100%; height:100vh; background:#000; border-radius: 80px; overflow:hidden;"></div>
-    }
+        <button id="menuToggle" class="menu-toggle">
+            &#10095;
+        </button>
+    </div>
 </div>
 
 @section Scripts {
@@ -335,30 +559,135 @@
     </script>
 
     <script>
-        const fractalSelect = document.getElementById('fractalType');
-        const fractalDescs = {
-            'mandelbrot': document.getElementById('mandelbrot-desc'),
-            'julia': document.getElementById('julia-desc'),
-            'mandelbulb': document.getElementById('mandelbulb-desc')
-        };
+        const fractalTypeSelect = document.getElementById('fractalType');
+        const infoBlocks = document.querySelectorAll('.settings-info details');
 
-        function updateFractalDescription() {
-            const value = fractalSelect.value;
-            // Hide all first
-            Object.values(fractalDescs).forEach(div => div.style.display = 'none');
-            // Show selected
-            if (fractalDescs[value]) fractalDescs[value].style.display = 'block';
+        function updateInfoVisibility() {
+            infoBlocks.forEach(d => {
+                d.style.display =
+                    d.dataset.fractal === fractalTypeSelect.value
+                        ? 'block'
+                        : 'none';
+                d.removeAttribute('open');
+            });
         }
 
-        // Initial check
-        updateFractalDescription();
+        updateInfoVisibility();
+        fractalTypeSelect.addEventListener('change', updateInfoVisibility);
 
-        // Update on change
-        fractalSelect.addEventListener('change', updateFractalDescription);
+        const juliaSettings = document.getElementById('julia-settings');
+        const mandelbrotSettings = document.getElementById('mandelbrot-settings');
+        const mandelbulbSettings = document.getElementById('mandelbulb-settings');
+
+        function updateFractalSettingsVisibility() {
+            const type = fractalTypeSelect.value;
+            juliaSettings.style.display = type === 'julia' ? 'flex' : 'none';
+            mandelbrotSettings.style.display = type === 'mandelbrot' ? 'flex' : 'none';
+            mandelbulbSettings.style.display = type === 'mandelbulb' ? 'flex' : 'none';
+        }
+
+        fractalTypeSelect.addEventListener('change', updateFractalSettingsVisibility);
+
+        updateFractalSettingsVisibility();
     </script>
 
     <script>
         const audio = document.getElementById('audio');
-        audio.volume = 0.3;
+        audio.volume = 0.1;
+
+        const audioUploadForm = document.getElementById('audio-upload-bar');
+        const audioElement = document.getElementById('audio');
+        const audioPlaceholder = document.getElementById('audio-placeholder');
+
+        audioUploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(audioUploadForm);
+
+            try {
+                const response = await fetch(audioUploadForm.action, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    const uploadedAudioPath = result.audioPath;
+
+                    // show the audio player
+                    audioElement.src = uploadedAudioPath;
+                    audioElement.style.display = 'block';
+                    audioPlaceholder.style.display = 'none';
+
+                    // reset the file input and upload button
+                    fileInput.value = '';
+                    fileLabel.textContent = 'Choose Audio';
+                    uploadBtn.disabled = true;
+                    uploadBtn.style.opacity = 0.5;
+                } else {
+                    alert("Upload failed. Try again.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Upload failed. Try again.");
+            }
+        });
+    </script>
+
+    <script>
+        function hexToRgb01(hex) {
+            const v = parseInt(hex.slice(1), 16);
+            return [
+                ((v >> 16) & 255) / 255,
+                ((v >> 8) & 255) / 255,
+                (v & 255) / 255
+            ];
+        }
+
+        document.getElementById("iterSlider").addEventListener("input", e => {
+            updateFractalConfig({
+                quality: { iterations: parseInt(e.target.value) }
+            });
+        });
+
+        document.getElementById("bassSlider").addEventListener("input", e => {
+            updateFractalConfig({
+                motion: { bassStrength: parseFloat(e.target.value) }
+            });
+        });
+
+        document.getElementById("trebleSlider").addEventListener("input", e => {
+            updateFractalConfig({
+                motion: { trebleStrength: parseFloat(e.target.value) }
+            });
+        });
+
+        document.getElementById("primaryColor").addEventListener("input", e => {
+            updateFractalConfig({
+                colors: { primary: hexToRgb01(e.target.value) }
+            });
+        });
+
+        document.getElementById("secondaryColor").addEventListener("input", e => {
+            updateFractalConfig({
+                colors: { secondary: hexToRgb01(e.target.value) }
+            });
+        });
+
+        document.getElementById("rainbowToggle").addEventListener("change", (e) => {
+          updateFractalConfig({
+            colorMode: { rainbow: e.target.checked }
+          });
+        });
+    </script>
+
+    <script>
+        const menuToggle = document.getElementById('menuToggle');
+        const fractalSettings = document.getElementById('fractal-settings');
+
+        menuToggle.addEventListener('click', () => {
+            fractalSettings.classList.toggle('closed');
+            menuToggle.classList.toggle('closed');
+        });
     </script>
 }

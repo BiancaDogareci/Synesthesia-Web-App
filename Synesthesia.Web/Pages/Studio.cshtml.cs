@@ -62,24 +62,20 @@ namespace Synesthesia.Web.Pages
         {
             if (audioFile == null || audioFile.Length == 0)
             {
-                Message = "Please select an audio file (.mp3 or .wav).";
-                return Page();
+                return new JsonResult(new { success = false, message = "Please select an audio file (.mp3 or .wav)." });
             }
 
             var ext = Path.GetExtension(audioFile.FileName).ToLowerInvariant();
             if (ext != ".mp3" && ext != ".wav")
             {
-                Message = "Only .mp3 and .wav files are allowed.";
-                return Page();
+                return new JsonResult(new { success = false, message = "Only .mp3 and .wav files are allowed." });
             }
 
             var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads", "audio");
             if (!Directory.Exists(uploadsFolder))
-            {
                 Directory.CreateDirectory(uploadsFolder);
-            }
 
-            var newFileName = Guid.NewGuid().ToString("N") + ext; // unique gibblerish
+            var newFileName = Guid.NewGuid().ToString("N") + ext;
             var filePath = Path.Combine(uploadsFolder, newFileName);
 
             try
@@ -91,18 +87,12 @@ namespace Synesthesia.Web.Pages
             }
             catch (Exception ex)
             {
-                Message = "Failed to save uploaded file: " + ex.Message;
-                return Page();
+                return new JsonResult(new { success = false, message = "Failed to save uploaded file: " + ex.Message });
             }
 
-            // Only assign properties for UI rendering, we dont save to DB
-            AudioPath = $"/uploads/audio/{newFileName}";
-            UploadedOriginalFileName = audioFile.FileName;
-            CurrentAudioId = null;
-            IsCurrentAudioSaved = false;
-            Message = "Audio uploaded. Click 'Save to Profile' to add to your history.";
+            var audioPath = $"/uploads/audio/{newFileName}";
 
-            return Page();
+            return new JsonResult(new { success = true, audioPath, originalFileName = audioFile.FileName });
         }
 
         public async Task<IActionResult> OnPostSaveToProfileAsync(string audioPath, string originalFileName)

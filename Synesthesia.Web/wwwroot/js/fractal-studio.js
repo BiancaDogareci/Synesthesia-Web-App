@@ -5,11 +5,89 @@
     // will hold a function to remove/stop the visualizer when switching fractals or stopping audio
     let cleanup = null;
 
+    let activeUniforms = null;
+    let audioContext = null;
+
+    let currentConfig = {
+        fractalType: "julia",
+        colors: {
+            primary: [1.0, 0.3, 0.6],
+            secondary: [0.2, 0.6, 1.0]
+        },
+        motion: {
+            bassStrength: 1.0,
+            trebleStrength: 1.0,
+            rotationSpeed: 0.2,
+            zoomPulse: 0.05
+        },
+        quality: {
+            iterations: 300,
+            raySteps: 100
+        },
+        julia: {
+            cx: -0.4,
+            cy: -0.59
+        },
+        colorMode: {
+            rainbow: false
+        }
+    };
+
+    // Julia preset definitions (GLOBAL so HTML can access them)
+    window.juliaPresets = {
+        classic: { cx: 0.0, cy: 0.8 },
+        dragon: { cx: 0.37, cy: 0.1 },
+        snowflake: { cx: 0.355, cy: 0.355 },
+        spiral: { cx: 0.34, cy: -0.05 },
+        lotus: { cx: -0.54, cy: 0.54 },
+        chaos: { cx: -0.4, cy: -0.59 }
+    };
+
+    window.updateFractalConfig = function (partialConfig) {
+        currentConfig = {
+            ...currentConfig,
+            ...partialConfig,
+            colors: { ...currentConfig.colors, ...partialConfig.colors },
+            motion: { ...currentConfig.motion, ...partialConfig.motion },
+            quality: { ...currentConfig.quality, ...partialConfig.quality },
+            julia: { ...currentConfig.julia, ...partialConfig.julia }
+        };
+
+        if (!activeUniforms) return;
+
+        activeUniforms.primaryColor.value.set(...currentConfig.colors.primary);
+        activeUniforms.secondaryColor.value.set(...currentConfig.colors.secondary);
+
+        activeUniforms.bassStrength.value = currentConfig.motion.bassStrength;
+        activeUniforms.trebleStrength.value = currentConfig.motion.trebleStrength;
+        activeUniforms.rotationSpeed.value = currentConfig.motion.rotationSpeed;
+        activeUniforms.zoomPulse.value = currentConfig.motion.zoomPulse;
+
+        activeUniforms.iterations.value = currentConfig.quality.iterations;
+        activeUniforms.raySteps.value = currentConfig.quality.raySteps;
+
+        if (partialConfig.julia) {
+            activeUniforms.juliaC.value.set(
+                partialConfig.julia.cx,
+                partialConfig.julia.cy
+            );
+        }
+
+        if (partialConfig.colorMode?.rainbow !== undefined) {
+            activeUniforms.rainbowMode.value =
+                partialConfig.colorMode.rainbow ? 1.0 : 0.0;
+        }
+    };
+
     window.initVisualizer = function (fractalType = "julia", containerId = "fractal-container") {
         const container = document.getElementById(containerId);
         if (!container) {
             console.warn("No container found:", containerId);
             return () => { };
+        }
+
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
         }
 
         // clean container so old visualizations are removed
@@ -37,13 +115,37 @@
             iResolution: { value: new THREE.Vector3(container.clientWidth, container.clientHeight, 1) }, // container size
             bassLevel: { value: 0 },
             trebleLevel: { value: 0 },
-            lfo: { value: 0 }, // low-frequency oscillation
+
+            //lfo: { value: 0 }, // low-frequency oscillation
             zoom: { value: 1.0 },
-            iBoom: { value: 0 }, // strong beat/bass kick
-            speed: { value: 1.0 },
+            //iBoom: { value: 0 }, // strong beat/bass kick
+            //speed: { value: 1.0 },
+
+            // user controls
+            primaryColor: { value: new THREE.Vector3(...currentConfig.colors.primary) },
+            secondaryColor: { value: new THREE.Vector3(...currentConfig.colors.secondary) },
+
+            bassStrength: { value: currentConfig.motion.bassStrength },
+            trebleStrength: { value: currentConfig.motion.trebleStrength },
+            rotationSpeed: { value: currentConfig.motion.rotationSpeed },
+            zoomPulse: { value: currentConfig.motion.zoomPulse },
+
+            iterations: { value: currentConfig.quality.iterations },
+            raySteps: { value: currentConfig.quality.raySteps },
+
             pulse: { value: 1.0 },
-            rotation: { value: 0.0 }
+            rotation: { value: 0.0 },
+
+            juliaC: { value: new THREE.Vector2(-0.4, -0.59) },
+            rainbowMode: { value: currentConfig.colorMode?.rainbow ? 1.0 : 0.0 },
+
+            // mandelbulb
+            lfo: { value: 0.0 },
+            iBoom: { value: 0.0 },
+            speed: { value: 1.0 },
         };
+
+        activeUniforms = uniforms;
 
         // vertex shader
         const vertexShader = `
@@ -177,89 +279,159 @@
                 uniform float iTime;
                 uniform float bassLevel;
                 uniform float trebleLevel;
-                uniform float pulse;
+
+                uniform float bassStrength;
+                uniform float trebleStrength;
+                uniform float iterations;
+
+                uniform vec3 primaryColor;
+                uniform vec3 secondaryColor;
+
                 uniform vec3 iResolution;
+                uniform float pulse;
+                uniform float rainbowMode; // 0 = off, 1 = on
 
-                // Computes the complex constant C for the Julia set with light music influence
+                uniform vec2 juliaC;
+
                 vec2 getC() {
-                    float moveX = 0.02 * sin(iTime*0.15); // slow oscillation in x
-                    float moveY = 0.02 * cos(iTime*0.11); // slow oscillation in y
+                    vec2 C = juliaC;
 
-                    moveX += 0.01 * bassLevel;    // slight push
-                    moveY += 0.005 * trebleLevel; // small shimmer
+                    // gentle musical motion around chosen Julia
+                    C.x += 0.01 * bassLevel * bassStrength * sin(iTime * 0.15);
+                    C.y += 0.01 * trebleLevel * trebleStrength * cos(iTime * 0.11);
 
-                    // Base Julia constant = (-0.7, 0.27015) -> typical "interesting" Julia shape
-                    return vec2(-0.7 + moveX, 0.27015 + moveY);
+                    return C;
                 }
 
-                // Converts t (0–1, normalized escape) into a soft rainbow color
-                vec3 rainbow(float t) {
-                    float shift = trebleLevel * 0.1; // mild color change
+                /* for rainbow */
+                vec3 colorRamp(float t) {
+                    float phase = trebleLevel * trebleStrength * 0.15;
 
-                    float r = 0.5 + 0.5 * sin(6.2831*(t+shift) + 0.0);
-                    float g = 0.5 + 0.5 * sin(6.2831*(t+shift) + 2.1);
-                    float b = 0.5 + 0.5 * sin(6.2831*(t+shift) + 4.2);
+                    vec3 rainbow = vec3(
+                        0.5 + 0.5 * sin(6.2831 * (t + phase) + 0.0),
+                        0.5 + 0.5 * sin(6.2831 * (t + phase) + 2.1),
+                        0.5 + 0.5 * sin(6.2831 * (t + phase) + 4.2)
+                    );
 
-                    // oscillates intensity slightly over time with the help of brightness
-                    float brightness = 0.8 + 0.15 * sin(iTime*0.5 + t*10.0 + trebleLevel);
-                    return vec3(r, g, b) * brightness;
+                    return mix(primaryColor, rainbow, smoothstep(0.0, 0.25, t));
+                }
+
+                /* for other colors */
+                vec3 palette(float t) {
+                    // sharpen banding
+                    float bands = pow(t, 0.6);
+
+                    // audio modulated phase
+                    float phase =
+                        bassLevel * bassStrength * 0.4 +
+                        trebleLevel * trebleStrength * 0.3;
+
+                    // oscillating weights
+                    float w1 = sin(6.2831 * (bands * 1.0 + phase));
+                    float w2 = sin(6.2831 * (bands * 2.3 - phase));
+                    float w3 = sin(6.2831 * (bands * 4.7 + iTime * 0.1));
+
+                    // hard color separation
+                    vec3 col =
+                        primaryColor   * (0.6 + 0.4 * w1) +
+                        secondaryColor * (0.6 + 0.4 * w2) +
+                        mix(primaryColor, secondaryColor, 0.5) * (0.3 + 0.3 * w3);
+
+                    return clamp(col, 0.0, 1.0);
+                }
+
+                float huePhase(vec3 c) {
+                    float maxC = max(c.r, max(c.g, c.b));
+                    float minC = min(c.r, min(c.g, c.b));
+                    float delta = maxC - minC;
+
+                    float hue = 0.0;
+                    if (delta > 0.0001) {
+                        if (maxC == c.r) hue = mod((c.g - c.b) / delta, 6.0);
+                        else if (maxC == c.g) hue = (c.b - c.r) / delta + 2.0;
+                        else hue = (c.r - c.g) / delta + 4.0;
+                        hue /= 6.0;
+                    }
+                    return hue * 6.28318;
                 }
 
                 void main() {
-                    // Normalizes screen coordinates
-                    vec2 uv = (gl_FragCoord.xy - 0.5*iResolution.xy) / iResolution.y;
-
-                    // Base Julia size (zoom)
+                    /* stable viewport */
+                    vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
                     uv *= 1.6;
 
-                    // Subtle wobble from bass
-                    uv += 0.015 * bassLevel * vec2(sin(iTime), cos(iTime*0.7));
-
-                    // Small treble shimmer
-                    uv += 0.003 * trebleLevel * vec2(sin(iTime*20.0), cos(iTime*18.0));
-
-                    // Gentle zoom breathing
-                    float zoom = 1.0 +
-                                 0.03 * sin(iTime*0.3) +
-                                 0.02 * bassLevel;
+                    /* subtle space breathing (not sliding) */
+                    float zoom =
+                        1.0 +
+                        0.03 * sin(iTime * 0.3) +
+                        0.02 * bassLevel * bassStrength;
                     uv *= zoom;
 
-                    // Soft swirl
-                    float angle = 0.07 * bassLevel;
-                    float s = sin(angle), c = cos(angle);
-                    uv = vec2(uv.x*c - uv.y*s, uv.x*s + uv.y*c);
+                    /* soft rotation */
+                    float angle = 0.07 * bassLevel * bassStrength;
+                    float s = sin(angle);
+                    float c = cos(angle);
+                    uv = vec2(uv.x * c - uv.y * s, uv.x * s + uv.y * c);
 
-                    // Julia set iteration
+                    /* Julia iteration */
                     vec2 z = uv;
                     vec2 C = getC();
 
-                    int maxIter = 300; // high iteration count for detailed Julia set
+                    int maxIter = int(iterations);
                     int i;
-                    for (i = 0; i < maxIter; i++) {
-                        float x = z.x*z.x - z.y*z.y + C.x;
-                        float y = 2.0*z.x*z.y + C.y;
+
+                    for (i = 0; i < 1000; i++) {
+                        if (i >= maxIter) break;
+
+                        float x = z.x * z.x - z.y * z.y + C.x;
+                        float y = 2.0 * z.x * z.y + C.y;
                         z = vec2(x, y);
-                        if (dot(z,z) > 4.0) break; // escape radius squared, typical for Julia sets
+
+                        if (dot(z, z) > 4.0) break;
                     }
 
-                    // Normalized iteration count for coloring
                     float t = float(i) / float(maxIter);
 
-                    // Pink core + rainbow mix
-                    vec3 blob = vec3(1.0, 0.3, 0.6);
-                    float blobMix = smoothstep(0.0, 0.18, t);
-                    vec3 base = mix(blob, rainbow(t + 0.05*trebleLevel), blobMix);
+                    t = smoothstep(0.0, 1.0, t);
+                    t = pow(t, 0.85);
 
-                    // makes inner points darker, outer points brighter
-                    float shadow = pow(t, 0.3);
-                    vec3 col = base * shadow * pulse;
+                    /* coloring */
+                    vec3 col;
 
-                    // Adds subtle glow around the center
-                    // exp(-20*dot(uv, uv)) -> Gaussian falloff, concentrated near center
+                    if (rainbowMode > 0.5) {
+                        float phase = huePhase(secondaryColor);
+
+                        float p =
+                            6.28318 * t +
+                            phase +
+                            bassLevel * bassStrength * 0.6 +
+                            trebleLevel * trebleStrength * 0.4 +
+                            iTime * 0.25;
+
+                        col = vec3(
+                            0.5 + 0.5 * sin(p + 0.0),
+                            0.5 + 0.5 * sin(p + 2.094),
+                            0.5 + 0.5 * sin(p + 4.188)
+                        );
+
+                        // anchor rainbow with primary color
+                        col = mix(primaryColor, col, 0.85);
+                    } else {
+                        float rings = sin(30.0 * t + iTime * 0.3);
+                        col = mix(
+                            primaryColor,
+                            secondaryColor,
+                            smoothstep(-0.2, 0.2, rings)
+                        );
+                    }
+
+                    float shadow = pow(t, 0.35);
+                    col *= shadow * pulse;
+
+                    /* inner glow */
                     float glow = exp(-20.0 * dot(uv, uv));
-                    col += glow * 0.12 * vec3(0.2, 0.3, 0.6);
+                    col += glow * 0.12 * secondaryColor;
 
-                    // Outputs RGBA color
                     gl_FragColor = vec4(col, 1.0);
                 }
             `;
@@ -385,11 +557,9 @@
         scene.add(light);
 
         //   Audio context & analyser
-        // Creates a Web Audio API context
         // Connects <audio> element to an analyser node to get frequency data
         // fftSize = 2048 determines the resolution of frequency data
         // freqData stores the analyzed spectrum for each frame
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const analyser = audioContext.createAnalyser();
         analyser.fftSize = 2048;
 
@@ -430,10 +600,13 @@
             for (let i = 11; i < freqData.length; i++) trebleSum += freqData[i];
             let treble = trebleSum / (freqData.length - 11) / 255;
 
-            uniforms.bassLevel.value = bass;
-            uniforms.trebleLevel.value = treble;
+            uniforms.bassLevel.value = bass * currentConfig.motion.bassStrength;
+            uniforms.trebleLevel.value = treble * currentConfig.motion.trebleStrength;
             uniforms.iTime.value += 0.016;
-            uniforms.zoom.value = 1.0 + Math.pow(bass, 0.3);
+            uniforms.zoom.value = 1.0 + Math.pow(bass, 0.3) * currentConfig.motion.zoomPulse;
+            uniforms.rotation.value += currentConfig.motion.rotationSpeed * 0.01;
+
+            console.log(bass, treble);
 
             renderer.render(scene, camera);
         }
@@ -456,6 +629,14 @@
     };
 
 
+
+    updateFractalConfig({
+        motion: { bassStrength: 2.5 },
+        colors: { primary: [0.2, 0.9, 0.7] }
+    });
+
+    // Render fractal immediately
+    cleanup = window.initVisualizer(fractalSelect.value, "fractal-container");
 
     //   When the audio starts playing:
     // Any old visualizer is cleaned up
