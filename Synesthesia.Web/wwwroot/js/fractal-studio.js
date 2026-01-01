@@ -439,98 +439,88 @@
         else if (fractalType === "mandelbrot") {
             // Mandelbrot GLSL fragment shader
             fragmentShader = `
-                precision highp float; // high precision floats, important for fractals where small differences matter
+                precision highp float;
 
                 uniform float iTime;
-                uniform float bassLevel; // (0-1 normalised)
-                uniform float trebleLevel;  // (0-1 normalised) - ignored here for now
-                uniform float pulse; // global effect multiplier
-                uniform vec3 iResolution; // screen resolution (x = width, y = height, z = depth), used to normalize coordinates
+                uniform float bassLevel;
+                uniform float trebleLevel; // unused but kept for compatibility
 
-                //   Simple rainbow color
-                // Converts a normalized value t (0–1) into a smooth RGB rainbow gradient
-                // 6.28318 ≈ 2π -> full sine wave cycle
-                // 0.5 + 0.5 * sin(...) -> remaps sin(-1..1) to [0,1]
-                vec3 rainbow(float t) {
-                    float r = 0.5 + 0.5 * sin(6.28318 * t + 0.0);
-                    float g = 0.5 + 0.5 * sin(6.28318 * t + 2.1);
-                    float b = 0.5 + 0.5 * sin(6.28318 * t + 4.2);
-                    return vec3(r, g, b);
-                }
+                uniform float bassStrength;
+                uniform float trebleStrength; // unused
+                uniform float iterations;
+
+                uniform vec3 primaryColor;
+                uniform vec3 secondaryColor;
+
+                uniform vec3 iResolution;
+                uniform float pulse;
+                uniform float rainbowMode; // 0 = off, 1 = on
 
                 void main() {
-                    //   Viewport — static, zoomed out, centered
-                    // gl_FragCoord.xy -> pixel coordinates on screen
-                    // 0.5 * iResolution.xy -> shifts origin to center of screen
-                    // / iResolution.y -> normalizes coordinates so aspect ratio is preserved
+                    /* static viewport (NO movement) */
                     vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
 
-                    uv *= 2.8; // zoom out so we see more of the Mandelbrot set
-                    uv.x -= 0.5; // shifts horizontally to center the fractal visually
+                    /* classic Mandelbrot framing */
+                    uv *= 2.8;
+                    uv.x -= 0.5;
 
-                    // Classic Mandelbrot (power = 2.0)
-                    float power = 2.0;
+                    /* bass influence */
+                    float bass = clamp(bassLevel * bassStrength, 0.0, 1.0);
 
-                    // iterations between 5-50
-                    // bass = 0 -> 50 iterations (sharp)
-                    // bass = 1 -> 5 iterations (blobby)
-                    // Mapping: 50 - bass * 45
-                    float bass = clamp(bassLevel, 0.0, 1.0); // clamps bassLevel between 0–1
-                    int maxIter = int(50.0 - bass * 45.0);
+                    /* 🔥 iteration morphing ONLY */
+                    float minIter = 4.0;                // very blobby
+                    float maxIter = max(iterations, 6.0);
 
-                    // Tiny parameter offset (to c) from bass for gentle breathing
-                    vec2 paramK = 0.002 * bass * vec2(
-                        sin(iTime * 0.8),
-                        cos(iTime * 0.7)
-                    );
+                    int maxIterI = int(mix(maxIter, minIter, bass));
 
-                    // Initialize fractal iteration
-                    vec2 c = uv;
+                    /* Mandelbrot iteration (fixed c) */
                     vec2 z = vec2(0.0);
-                    float escapedR = 0.0; // stores squared magnitude when the point escapes
+                    vec2 cplx = uv;
+
                     int i;
+                    for (i = 0; i < 1000; i++) {
+                        if (i >= maxIterI) break;
 
-                    // Mandelbrot iteration loop
-                    for (i = 0; i < maxIter; i++) {
-                        float x = z.x*z.x - z.y*z.y;
-                        float y = 2.0*z.x*z.y;
-                        z = vec2(x, y) + c + paramK;
+                        float x = z.x * z.x - z.y * z.y;
+                        float y = 2.0 * z.x * z.y;
+                        z = vec2(x, y) + cplx;
 
-                        float r2 = dot(z, z);
-                        if (r2 > 4.0) {
-                            escapedR = r2;
-                            break;
-                        }
+                        if (dot(z, z) > 4.0) break;
                     }
 
-                    // Escape time normalized
-                    float t = float(i) / float(maxIter);
+                    float t = float(i) / float(maxIterI);
+                    t = smoothstep(0.0, 1.0, t);
+                    t = pow(t, mix(1.2, 0.7, bass));
 
-                    // Color shaping
-                    // mix(a,b,f) -> linear interpolation between a and b by factor f
-                    // a = vec3(1.0,0.3,0.6) -> pinkish base color
-                    // b = rainbow(t) -> rainbow gradient based on escape time
-                    // smoothstep(0.0,0.15,t) -> smooth interpolation for t in [0,0.15], keeps inner fractal pink and outer fractal colorful
-                    vec3 base = mix(vec3(1.0, 0.3, 0.6), rainbow(t), smoothstep(0.0, 0.15, t));
+                    /* coloring */
+                    vec3 col;
 
-                    // soft darkening for points closer to the center
+                    if (rainbowMode > 0.5) {
+                        float p =
+                            6.28318 * t +
+                            bass * 0.6 +
+                            iTime * 0.25;
+
+                        col = vec3(
+                            0.5 + 0.5 * sin(p + 0.0),
+                            0.5 + 0.5 * sin(p + 2.094),
+                            0.5 + 0.5 * sin(p + 4.188)
+                        );
+
+                        col = mix(primaryColor, col, 0.85);
+                    } else {
+                        col = mix(primaryColor, secondaryColor, t);
+                    }
+
+                    /* depth & pulse */
                     float shadow = pow(t, 0.4);
+                    col *= shadow;
+                    col *= (0.9 + 0.35 * bass * pulse);
 
-                    // pulsating brightness controlled by bass and pulse
-                    // 0.9 -> minimum brightness
-                    // 0.4 * bass * sin(...) -> oscillating brightness, adds music response
-                    float bassFlash = 0.9 + 0.4 * bass * sin(iTime * 3.0 + pulse * 1.5);
+                    /* soft vignette */
+                    float vignette = exp(-2.4 * dot(uv, uv));
+                    col *= (0.9 + 0.25 * vignette);
 
-                    // Final color = base * shadow * bass effect
-                    vec3 col = base * shadow * bassFlash;
-
-                    // Gentle static vignette
-                    // dot(uv, uv) -> distance² from center
-                    // exp(-2.5 * distance²) -> Gaussian falloff for vignette
-                    float vign = exp(-2.5 * dot(uv, uv));
-                    col *= (0.95 + 0.2 * vign);
-
-                    // clamp ensures RGB stays in [0,1] and the second parameter 1 means fully opaque
                     gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
                 }
             `;

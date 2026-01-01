@@ -5,17 +5,31 @@
 }
 
 <style>
+    /* 1. Make html/body fill the viewport and prevent scroll */
     html, body {
-        height: 100%;
         margin: 0;
         padding: 0;
+        height: 100%;
+        overflow: hidden; /* prevent scrolling */
     }
 
-    body {
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
+    /* 2. Studio stage fills remaining height minus header */
+    #studio-stage {
+        position: relative;
+        width: 100vw;
+        /* height = viewport height minus header height */
+        height: calc(100vh - var(--header-height));
+        overflow: hidden;
     }
+
+    /* 3. Fractal container fills the studio stage */
+    #fractal-container {
+        width: 100%;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+    }
+
 
     main {
         flex: 1;
@@ -44,7 +58,7 @@
         background: rgba(0, 255, 120, 0.25);
         border: 2px solid rgba(0, 255, 120, 0.5);
         color: #eaffea;
-        padding: 8px;
+        padding: 4px;
         border-radius: 80px;
         transition: 0.3s;
         font-size: 1.1rem;
@@ -152,18 +166,18 @@
 
 
 
-    #studio-stage {
+   /*  #studio-stage {
         position: relative;
         width: 100vw;
         height: 100vh;
         overflow: hidden;
-    }
+    } */
 
-    #fractal-container {
+    /* #fractal-container {
         position: absolute;
         inset: 0;
         background: black;
-    }
+    } */
 
     #fractal-settings {
         position: absolute;
@@ -171,7 +185,7 @@
         right: 0;
         transform: translateY(-50%) translateX(0);
         width: 300px;
-        height: 95vh;
+        height: calc(100vh - var(--header-height) - 5vh);
         padding: 16px;
         display: flex;
         flex-direction: column;
@@ -425,7 +439,7 @@
                     <form method="post" asp-page-handler="SaveToProfile" style="margin-top:6px;">
                         <input type="hidden" name="audioPath" value="@Model.AudioPath" />
                         <input type="hidden" name="originalFileName" value="@Model.UploadedOriginalFileName" />
-                        <button type="submit" class="btn-syn-success" style="width:100%;">Save to Profile</button>
+                        <button type="submit" class="btn-syn-success" style="width:100%; font-size: 0.85rem;">Save to Profile</button>
                     </form>
                 }
                 else if (User.Identity?.IsAuthenticated == true && Model.IsCurrentAudioSaved)
@@ -455,10 +469,10 @@
                 <input type="range" min="0" max="5" step="0.1" value="1" id="trebleSlider">
 
                 <label class="syn-label">Primary Color</label>
-                <input type="color" id="primaryColor" value="#ff4d99">
+                <input type="color" id="primaryColor" value="#291E7D">
 
                 <label class="syn-label">Secondary Color</label>
-                <input type="color" id="secondaryColor" value="#3399ff">
+                <input type="color" id="secondaryColor" value="#872D53">
 
                 <label class="syn-label">
                     <input type="checkbox" id="rainbowToggle">
@@ -479,8 +493,25 @@
             </div>
 
             <div id="mandelbrot-settings">
-                <!-- future Mandelbrot settings go here -->
-                <p style="color: #ccc; font-size: 0.85rem;">Mandelbrot settings coming soon...</p>
+                <label class="syn-label">Iterations</label>
+                <input type="range" min="10" max="350" step="1" value="150" id="mandelIterSlider">
+
+                <label class="syn-label">Bass Strength</label>
+                <input type="range" min="0" max="1.2" step="0.05" value="0.6" id="mandelBassSlider">
+
+                @* <label class="syn-label">Treble Strength</label>
+                <input type="range" min="0" max="4" step="0.1" value="1" id="mandelTrebleSlider"> *@
+
+                <label class="syn-label">Primary Color</label>
+                <input type="color" id="mandelPrimaryColor" value="#291E7D">
+
+                <label class="syn-label">Secondary Color</label>
+                <input type="color" id="mandelSecondaryColor" value="#872D53">
+
+                <label class="syn-label">
+                    <input type="checkbox" id="mandelRainbowToggle">
+                    Rainbow mode
+                </label>
             </div>
 
             <div id="mandelbulb-settings">
@@ -494,9 +525,16 @@
                 <details data-fractal="mandelbrot">
                     <summary>Mandelbrot Info</summary>
                     <div class="details-body">
-                        <p><strong>Formula:</strong></p>
-                        <pre>zₙ₊₁ = zₙ² + c</pre>
-                        <p>Each pixel is a complex <code>c</code>. Escape time determines color.</p>
+                        <p><strong>About Mandelbrot Sets:</strong></p>
+                        <p>The Mandelbrot set is a famous 2D fractal defined by iterating the formula <code>zₙ₊₁ = zₙ² + c</code> for each pixel, where <code>z₀ = 0</code> and <code>c</code> represents the complex coordinate of that pixel. Points that remain bounded after many iterations are part of the set; others escape to infinity. The resulting shape exhibits intricate, self-similar patterns at all scales.</p>
+
+                        <p><strong>Parameters:</strong></p>
+                        <ul>
+                            <li><strong>Iterations:</strong> Number of iterations applied per pixel. Higher values reveal more detail and sharper edges. In this visualizer, the number of iterations decreases dynamically with the <em>bass level</em>, making the fractal appear more "blobby" when bass hits strongly.</li>
+                            <li><strong>Bass Strength:</strong> Determines how strongly the fractal responds to low-frequency audio. Higher bass levels reduce iterations and create a pulsating, softening effect on the fractal’s boundaries.</li>
+                            <li><strong>Primary & Secondary Colors:</strong> Define the main color palette for the fractal when rainbow mode is disabled.</li>
+                            <li><strong>Rainbow Mode:</strong> When enabled, colors continuously cycle across the spectrum, and the fractal's brightness subtly reacts to bass.</li>
+                        </ul>
                     </div>
                 </details>
 
@@ -679,6 +717,42 @@
             colorMode: { rainbow: e.target.checked }
           });
         });
+
+         document.getElementById("mandelIterSlider").addEventListener("input", e => {
+            updateFractalConfig({
+                quality: { iterations: parseInt(e.target.value) }
+            });
+        });
+
+        document.getElementById("mandelBassSlider").addEventListener("input", e => {
+            updateFractalConfig({
+                motion: { bassStrength: parseFloat(e.target.value) }
+            });
+        });
+
+        // document.getElementById("mandelTrebleSlider").addEventListener("input", e => {
+        //     updateFractalConfig({
+        //         motion: { trebleStrength: parseFloat(e.target.value) }
+        //     });
+        // });
+
+        document.getElementById("mandelPrimaryColor").addEventListener("input", e => {
+            updateFractalConfig({
+                colors: { primary: hexToRgb01(e.target.value) }
+            });
+        });
+
+        document.getElementById("mandelSecondaryColor").addEventListener("input", e => {
+            updateFractalConfig({
+                colors: { secondary: hexToRgb01(e.target.value) }
+            });
+        });
+
+        document.getElementById("mandelRainbowToggle").addEventListener("change", e => {
+            updateFractalConfig({
+                colorMode: { rainbow: e.target.checked }
+            });
+        });
     </script>
 
     <script>
@@ -689,5 +763,16 @@
             fractalSettings.classList.toggle('closed');
             menuToggle.classList.toggle('closed');
         });
+    </script>
+
+    <script>
+        function updateHeaderHeight() {
+            const header = document.querySelector('header');
+            const headerHeight = header.offsetHeight;
+            document.documentElement.style.setProperty('--header-height', headerHeight + 'px');
+        }
+
+        window.addEventListener('load', updateHeaderHeight);
+        window.addEventListener('resize', updateHeaderHeight);
     </script>
 }
