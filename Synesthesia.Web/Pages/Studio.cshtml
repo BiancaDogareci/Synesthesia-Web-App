@@ -434,6 +434,15 @@
                            src="@(Model.AudioPath ?? "")"
                            style="@(string.IsNullOrEmpty(Model.AudioPath) ? "display:none;" : "display:block;")">
                     </audio>
+
+                    <button id="saveVideoBtn"
+                            type="button"
+                            class="btn-syn"
+                            style="width:100%; font-size:0.85rem; display:none; margin-top:6px;"
+                            disabled>
+                        Save Video
+                    </button>
+
                 </div>
 
                 <select id="fractalType" style="border-radius: 15px; padding: 6px 10px; margin-top: 6px;">
@@ -671,6 +680,8 @@
                     const saveActions = document.getElementById('save-actions');
                     const saveForm = document.getElementById('saveForm');
                     const saveBtn = document.getElementById('saveBtn');
+                    const saveVideoBtn = document.getElementById('saveVideoBtn');
+
 
                     if (saveActions) saveActions.style.display = 'block';
 
@@ -681,6 +692,11 @@
                     if (saveBtn) {
                       saveBtn.disabled = false;
                       saveBtn.textContent = 'Save to Profile';
+                    }
+                    if (saveVideoBtn) {
+                      saveVideoBtn.style.display = 'block';
+                      saveVideoBtn.disabled = false;
+                      saveVideoBtn.textContent = 'Save Video';
                     }
                     if (audioPathInput) audioPathInput.value = result.audioPath;
                     if (originalFileNameInput) originalFileNameInput.value = result.originalFileName;
@@ -851,5 +867,148 @@
           });
         }
     </script>
+
+    <script>
+        const saveVideoBtn = document.getElementById('saveVideoBtn');
+        const audioEl = document.getElementById('audio');
+
+        function getFractalCanvas() {
+          const container = document.getElementById('fractal-container');
+          return container ? container.querySelector('canvas') : null;
+        }
+
+        function downloadBlob(blob, filename) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        }
+
+        async function ensureAudioGraph(audioEl) {
+          if (!window.__studioAudio) window.__studioAudio = {};
+          const shared = window.__studioAudio;
+
+          // Create AudioContext if needed
+          if (!shared.ctx) {
+            shared.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          }
+
+          // Resume in Firefox (must be in a user gesture; Save Video click is perfect)
+          if (shared.ctx.state === "suspended") {
+            await shared.ctx.resume();
+          }
+
+          // Create the MediaElementSource only once per <audio>
+          if (!shared.source) {
+            shared.source = shared.ctx.createMediaElementSource(audioEl);
+            // keep audio audible
+            shared.source.connect(shared.ctx.destination);
+          }
+
+          return shared;
+        }
+
+
+        async function recordFractalWithAudioToBlob() {
+          const audioEl = document.getElementById("audio");
+          if (!audioEl || !audioEl.src) throw new Error("No audio loaded.");
+
+          window.__isRecordingVideo = true;
+
+          try {
+            // Ensure/reuse audio graph
+            const shared = await ensureAudioGraph(audioEl);
+
+            // Start audio (this may trigger your play handler, but it's now guarded)
+            if (audioEl.paused) await audioEl.play();
+
+            //  Wait 1 frame so the visualizer/canvas is definitely the current one
+            await new Promise(requestAnimationFrame);
+
+            //  Grab the canvas AFTER play
+            const canvas = getFractalCanvas();
+            if (!canvas) throw new Error("Fractal canvas not found.");
+
+            // Capture video from canvas
+            const canvasStream = canvas.captureStream(30);
+
+            // Capture audio via WebAudio destination (Firefox-safe)
+            const dest = shared.ctx.createMediaStreamDestination();
+            shared.source.connect(dest);
+
+            const mixedStream = new MediaStream([
+              ...canvasStream.getVideoTracks(),
+              ...dest.stream.getAudioTracks()
+            ]);
+
+            let mimeType = "video/webm;codecs=vp9,opus";
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = "video/webm;codecs=vp8,opus";
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = "video/webm";
+
+            const recorder = new MediaRecorder(mixedStream, { mimeType });
+            const chunks = [];
+
+            recorder.ondataavailable = (e) => {
+              if (e.data && e.data.size > 0) chunks.push(e.data);
+            };
+
+            const stopped = new Promise((resolve) => (recorder.onstop = resolve));
+
+            //  also wait another frame before starting recorder to avoid first-black-frame issues
+            await new Promise(requestAnimationFrame);
+
+            recorder.start();
+
+            // Stop when audio ends
+            await new Promise((resolve) => {
+              const handler = () => {
+                audioEl.removeEventListener("ended", handler);
+                resolve();
+              };
+              audioEl.addEventListener("ended", handler);
+            });
+
+            recorder.stop();
+            await stopped;
+
+            // Cleanup connection
+            try { shared.source.disconnect(dest); } catch (_) {}
+
+            return new Blob(chunks, { type: mimeType });
+          } finally {
+            window.__isRecordingVideo = false;
+          }
+        }
+
+
+
+        if (saveVideoBtn) {
+          saveVideoBtn.addEventListener('click', async () => {
+            try {
+              saveVideoBtn.disabled = true;
+              const oldText = saveVideoBtn.textContent;
+              saveVideoBtn.textContent = 'Recording...';
+
+              const blob = await recordFractalWithAudioToBlob();
+
+              saveVideoBtn.textContent = 'Downloading...';
+              downloadBlob(blob, 'fractal-video.webm');
+
+              saveVideoBtn.textContent = 'Save Video';
+              saveVideoBtn.disabled = false;
+            } catch (err) {
+              console.error(err);
+              alert(err.message || 'Save video failed.');
+              saveVideoBtn.textContent = 'Save Video';
+              saveVideoBtn.disabled = false;
+            }
+          });
+        }
+    </script>
+
 
 }

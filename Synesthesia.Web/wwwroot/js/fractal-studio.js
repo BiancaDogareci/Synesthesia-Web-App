@@ -79,6 +79,8 @@
         }
     };
 
+    window.__isRecordingVideo = false;
+
     window.initVisualizer = function (fractalType = "julia", containerId = "fractal-container") {
         const container = document.getElementById(containerId);
         if (!container) {
@@ -94,7 +96,10 @@
         container.innerHTML = "";
 
         // Creates a WebGL renderer
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            preserveDrawingBuffer: true
+        });
         // Sets renderer size to match container and appends its canvas to the DOM
         renderer.setSize(container.clientWidth, container.clientHeight);
         container.appendChild(renderer.domElement);
@@ -546,18 +551,30 @@
         light.position.set(3, 3, 5);
         scene.add(light);
 
-        //   Audio context & analyser
-        // Connects <audio> element to an analyser node to get frequency data
-        // fftSize = 2048 determines the resolution of frequency data
-        // freqData stores the analyzed spectrum for each frame
+        // --- Audio context & analyser (CREATE ONCE, REUSE) ---
+        if (!window.__studioAudio) window.__studioAudio = {};
+
         const analyser = audioContext.createAnalyser();
         analyser.fftSize = 2048;
 
-        const source = audioContext.createMediaElementSource(audio);
-        source.connect(analyser);
-        analyser.connect(audioContext.destination);
+        // Reuse the same MediaElementSourceNode (critical for Firefox)
+        if (!window.__studioAudio.source) {
+            window.__studioAudio.source = audioContext.createMediaElementSource(audio);
+
+            // This keeps audio audible
+            window.__studioAudio.source.connect(audioContext.destination);
+        }
+
+        // Always (re)connect analyser for THIS visualizer instance
+        try { window.__studioAudio.source.disconnect(analyser); } catch (_) { }
+        window.__studioAudio.source.connect(analyser);
 
         const freqData = new Uint8Array(analyser.frequencyBinCount);
+
+        // expose for Save Video
+        window.__studioAudio.ctx = audioContext;
+        window.__studioAudio.analyser = analyser;
+
 
         // Updates renderer and camera when the browser window resizes
         function onResize() {
@@ -633,6 +650,7 @@
     // initVisualizer is called with the selected fractal type
     if (audio) {
         audio.addEventListener("play", () => {
+            if (window.__isRecordingVideo) return;
             if (cleanup) cleanup();
             cleanup = window.initVisualizer(fractalSelect.value, "fractal-container");
         });
