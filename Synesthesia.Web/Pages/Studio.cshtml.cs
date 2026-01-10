@@ -98,58 +98,40 @@ namespace Synesthesia.Web.Pages
         public async Task<IActionResult> OnPostSaveToProfileAsync(string audioPath, string originalFileName)
         {
             if (!User?.Identity?.IsAuthenticated ?? true)
-            {
-                Message = "You must be logged in to save audio to your profile.";
-                return Page();
-            }
+                return new JsonResult(new { success = false, message = "You must be logged in to save audio to your profile." });
+
+            if (string.IsNullOrWhiteSpace(audioPath) || string.IsNullOrWhiteSpace(originalFileName))
+                return new JsonResult(new { success = false, message = "Please upload an audio file first." });
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             try
             {
-                // Check if the file already exists in DB
-                var existing = await _db.AudioFiles
-                    .FirstOrDefaultAsync(a => a.FilePath == audioPath);
-
+                // If already exists, treat as success (idempotent)
+                var existing = await _db.AudioFiles.FirstOrDefaultAsync(a => a.FilePath == audioPath);
                 if (existing != null)
-                {
-                    //if (existing.UserId == userId)
-                    //{
-                    //    Message = "This audio was uploaded by this user.";
-                    //    return Page();
-                    //}
+                    return new JsonResult(new { success = true, alreadySaved = true });
 
-                    // Already saved by this user
-                    AudioPath = existing.FilePath;
-                    CurrentAudioId = existing.Id;
-                    IsCurrentAudioSaved = true;
-                    Message = "Audio already saved to your profile.";
-                    return Page();
-                }
+                var ext = Path.GetExtension(originalFileName);
+                var format = string.IsNullOrWhiteSpace(ext) ? "unknown" : ext.TrimStart('.').ToLowerInvariant();
 
-                // Create new record
                 var audioRecord = new AudioFile
                 {
                     UserId = userId,
                     FileName = originalFileName,
                     FilePath = audioPath,
-                    Format = Path.GetExtension(audioPath).TrimStart('.')
+                    Format = format
                 };
 
                 _db.AudioFiles.Add(audioRecord);
                 await _db.SaveChangesAsync();
 
-                AudioPath = audioRecord.FilePath;
-                CurrentAudioId = audioRecord.Id;
-                IsCurrentAudioSaved = true;
-                Message = "Audio saved to your profile successfully!";
+                return new JsonResult(new { success = true, alreadySaved = false });
             }
             catch (Exception ex)
             {
-                Message = "Failed to save audio to profile: " + ex.Message;
+                return new JsonResult(new { success = false, message = "Failed to save audio: " + ex.Message });
             }
-
-            return Page();
         }
 
     }

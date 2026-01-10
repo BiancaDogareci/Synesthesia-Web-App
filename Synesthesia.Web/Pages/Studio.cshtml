@@ -422,10 +422,18 @@
         <div id="fractal-settings">
             <div class="settings-audio">
                 <div id="audio-container" style="display: flex; flex-direction: column; gap: 6px;">
-                    <span id="audio-placeholder" style="color: #ccc; text-align: center;">
+                    <span id="audio-placeholder"
+                          style="color: #ccc; text-align: center; @(string.IsNullOrEmpty(Model.AudioPath) ? "" : "display:none;")">
                         UPLOAD AN AUDIO FILE FIRST
                     </span>
-                    <audio id="audio" controls crossorigin="anonymous" class="rounded-audio" style="display: none;"></audio>
+
+                    <audio id="audio"
+                           controls
+                           crossorigin="anonymous"
+                           class="rounded-audio"
+                           src="@(Model.AudioPath ?? "")"
+                           style="@(string.IsNullOrEmpty(Model.AudioPath) ? "display:none;" : "display:block;")">
+                    </audio>
                 </div>
 
                 <select id="fractalType" style="border-radius: 15px; padding: 6px 10px; margin-top: 6px;">
@@ -434,26 +442,32 @@
                     <option value="mandelbulb">Mandelbulb 3D</option>
                 </select>
 
-                @if (User.Identity?.IsAuthenticated == true && !Model.IsCurrentAudioSaved)
-                {
-                    <form method="post" asp-page-handler="SaveToProfile" style="margin-top:6px;">
-                        <input type="hidden" name="audioPath" value="@Model.AudioPath" />
-                        <input type="hidden" name="originalFileName" value="@Model.UploadedOriginalFileName" />
-                        <button type="submit" class="btn-syn-success" style="width:100%; font-size: 0.85rem;">Save to Profile</button>
-                    </form>
-                }
-                else if (User.Identity?.IsAuthenticated == true && Model.IsCurrentAudioSaved)
-                {
-                    <span class="btn-syn-success" style="cursor: default; display:block; margin-top:6px; text-align:center;">
-                        ✓ Saved to Profile
-                    </span>
-                }
-                else if (User.Identity?.IsAuthenticated == false)
-                {
-                    <a class="btn-syn" asp-area="Identity" asp-page="/Account/Login" style="display:block; margin-top:6px; text-align:center; font-size: 0.85rem;">
-                        Login to Save
-                    </a>
-                }
+                <div id="save-actions" style="margin-top:6px; display:none;">
+                    @* Save button (only meaningful if logged in) *@
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <form id="saveForm" method="post" asp-page-handler="SaveToProfile" style="margin-top:6px; display:none;">
+                            <input type="hidden" id="audioPathInput" name="audioPath" value="" />
+                            <input type="hidden" id="originalFileNameInput" name="originalFileName" value="" />
+
+                            <button id="saveBtn" type="submit" class="btn-syn-success" style="width:100%; font-size: 0.85rem;">
+                                Save to Profile
+                            </button>
+                        </form>
+                    }
+
+                    @* Login link (only meaningful if logged out) *@
+                    @if (User.Identity?.IsAuthenticated != true)
+                    {
+                        <a id="loginToSaveLink"
+                           class="btn-syn"
+                           asp-area="Identity"
+                           asp-page="/Account/Login"
+                           style="display:block; text-align:center; font-size: 0.85rem;">
+                            Login to Save
+                        </a>
+                    }
+                </div>
 
                 <div class="settings-divider"></div>
             </div>
@@ -652,6 +666,25 @@
                     const result = await response.json();
                     const uploadedAudioPath = result.audioPath;
 
+                    const audioPathInput = document.getElementById('audioPathInput');
+                    const originalFileNameInput = document.getElementById('originalFileNameInput');
+                    const saveActions = document.getElementById('save-actions');
+                    const saveForm = document.getElementById('saveForm');
+                    const saveBtn = document.getElementById('saveBtn');
+
+                    if (saveActions) saveActions.style.display = 'block';
+
+                    // show save button area only after upload
+                    if (saveForm) saveForm.style.display = 'block';
+
+                    // reset button state on every upload
+                    if (saveBtn) {
+                      saveBtn.disabled = false;
+                      saveBtn.textContent = 'Save to Profile';
+                    }
+                    if (audioPathInput) audioPathInput.value = result.audioPath;
+                    if (originalFileNameInput) originalFileNameInput.value = result.originalFileName;
+
                     // show the audio player
                     audioElement.src = uploadedAudioPath;
                     audioElement.style.display = 'block';
@@ -775,4 +808,48 @@
         window.addEventListener('load', updateHeaderHeight);
         window.addEventListener('resize', updateHeaderHeight);
     </script>
+
+    <script>
+        const saveForm = document.getElementById('saveForm');
+        const saveBtn = document.getElementById('saveBtn');
+
+        if (saveForm) {
+          saveForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!saveBtn) return;
+
+            const formData = new FormData(saveForm);
+
+            // prevent double-clicks and show progress
+            const oldText = saveBtn.textContent;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+              const response = await fetch(saveForm.action, {
+                method: 'POST',
+                body: formData
+              });
+
+              const result = await response.json();
+
+              if (result.success) {
+                saveBtn.textContent = '✓ Saved to Profile';
+                saveBtn.disabled = true; // stays disabled until next upload
+              } else {
+                saveBtn.textContent = oldText;
+                saveBtn.disabled = false;
+                alert(result.message || 'Save failed.');
+              }
+            } catch (err) {
+              console.error(err);
+              saveBtn.textContent = oldText;
+              saveBtn.disabled = false;
+              alert('Save failed.');
+            }
+          });
+        }
+    </script>
+
 }
