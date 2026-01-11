@@ -507,9 +507,11 @@
                 </label>
 
                 <label class="syn-label">Julia Set</label>
-                <select onchange="updateFractalConfig({ julia: juliaPresets[this.value] })"
-                        style="border-radius: 15px;"
-                >
+                <select id="juliaPreset"
+                        onchange="updateFractalConfig({ julia: juliaPresets[this.value] })"
+                        style="border-radius: 15px;">
+
+          
                     <option value="classic">−0.4 − 0.59i</option>
                     <option value="dragon">0.37 + 0.1i</option>
                     <option value="snowflake">0.355 + 0.355i</option>
@@ -739,6 +741,7 @@
               primaryColor: document.getElementById("primaryColor").value,
               secondaryColor: document.getElementById("secondaryColor").value,
               rainbow: document.getElementById("rainbowToggle").checked,
+              juliaPreset: document.getElementById("juliaPreset")?.value || "classic"
               // If you want to also save the actual Julia constant, uncomment this:
               // julia: window.getFractalConfigSnapshot?.()?.julia ?? null
             };

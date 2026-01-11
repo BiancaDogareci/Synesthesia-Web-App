@@ -32,6 +32,8 @@
             const pcol = document.getElementById("primaryColor");
             const scol = document.getElementById("secondaryColor");
             const rainbow = document.getElementById("rainbowToggle");
+            const presetSelect = document.getElementById("juliaPreset");
+            if (presetSelect && saved.juliaPreset) presetSelect.value = saved.juliaPreset;
 
             if (iter && saved.iterations != null) iter.value = clamp(saved.iterations, 50, 800);
             if (bass && saved.bassStrength != null) bass.value = clamp(saved.bassStrength, 0, 5);
@@ -63,6 +65,14 @@
 
         const partial = { fractalType: ft };
 
+        if (ft === "julia") {
+            const key = saved?.juliaPreset;
+            if (key && window.juliaPresets?.[key]) {
+                partial.julia = window.juliaPresets[key];
+            }
+        }
+
+
         if (saved.iterations != null) {
             partial.quality = { iterations: parseInt(saved.iterations, 10) };
         }
@@ -92,8 +102,8 @@
     let currentConfig = {
         fractalType: "julia",
         colors: {
-            primary: [1.0, 0.3, 0.6],
-            secondary: [0.2, 0.6, 1.0]
+            primary: [0.1608, 0.1176, 0.4902], // #291E7D
+            secondary: [0.5294, 0.1765, 0.3255] 
         },
         motion: {
             bassStrength: 1.0,
@@ -234,7 +244,8 @@
             pulse: { value: 1.0 },
             rotation: { value: 0.0 },
 
-            juliaC: { value: new THREE.Vector2(-0.4, -0.59) },
+            juliaC: { value: new THREE.Vector2(currentConfig.julia.cx, currentConfig.julia.cy) },
+
             rainbowMode: { value: currentConfig.colorMode?.rainbow ? 1.0 : 0.0 },
 
             // mandelbulb
@@ -244,7 +255,7 @@
         };
 
         activeUniforms = uniforms;
-
+        window.updateFractalConfig({});
         // vertex shader
         const vertexShader = `
             void main() { 
@@ -731,7 +742,6 @@
     if (!window.__initialProject?.settingsJson) {
         updateFractalConfig({
             motion: { bassStrength: 2.5 },
-            colors: { primary: [0.2, 0.9, 0.7] }
         });
     }
 
