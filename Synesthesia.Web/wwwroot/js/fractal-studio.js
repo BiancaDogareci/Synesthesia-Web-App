@@ -14,11 +14,10 @@
     function applySavedSettingsToUI(saved) {
         const ft = saved?.fractalType || "julia";
 
-        // set dropdown first
         if (fractalSelect) fractalSelect.value = ft;
 
-        // show correct settings panel (reuse your existing function in Studio.cshtml scripts)
-        // If it's not global, just ignore; UI will still set values.
+        try { window.updateInfoVisibility?.(); } catch (_) { }
+
         try {
             if (typeof window.updateFractalSettingsVisibility === "function") {
                 window.updateFractalSettingsVisibility();
@@ -58,6 +57,28 @@
             if (scol && saved.secondaryColor) scol.value = saved.secondaryColor;
             if (rainbow && saved.rainbow != null) rainbow.checked = !!saved.rainbow;
         }
+
+        if (ft === "mandelbulb") {
+            const ray = document.getElementById("bulbRayStepsSlider");
+            const bass = document.getElementById("bulbBassSlider");
+            const treble = document.getElementById("bulbTrebleSlider");
+            const rot = document.getElementById("bulbRotSlider");
+            const zoom = document.getElementById("bulbZoomPulseSlider");
+            const pcol = document.getElementById("bulbPrimaryColor");
+            const scol = document.getElementById("bulbSecondaryColor");
+            const rainbow = document.getElementById("bulbRainbowToggle");
+
+            if (ray && saved.raySteps != null) ray.value = clamp(saved.raySteps, 30, 200);
+            if (bass && saved.bassStrength != null) bass.value = clamp(saved.bassStrength, 0, 5);
+            if (treble && saved.trebleStrength != null) treble.value = clamp(saved.trebleStrength, 0, 5);
+            if (rot && saved.rotationSpeed != null) rot.value = clamp(saved.rotationSpeed, 0, 2);
+            if (zoom && saved.zoomPulse != null) zoom.value = clamp(saved.zoomPulse, 0, 0.4);
+
+            if (pcol && saved.primaryColor) pcol.value = saved.primaryColor;
+            if (scol && saved.secondaryColor) scol.value = saved.secondaryColor;
+            if (rainbow && saved.rainbow != null) rainbow.checked = !!saved.rainbow;
+        }
+
     }
 
     function savedToPartialConfig(saved) {
@@ -70,6 +91,12 @@
             if (key && window.juliaPresets?.[key]) {
                 partial.julia = window.juliaPresets[key];
             }
+        }
+
+        if (ft === "mandelbulb") {
+            if (saved.raySteps != null) partial.quality = { ...(partial.quality || {}), raySteps: parseInt(saved.raySteps, 10) };
+            if (saved.rotationSpeed != null) partial.motion = { ...(partial.motion || {}), rotationSpeed: parseFloat(saved.rotationSpeed) };
+            if (saved.zoomPulse != null) partial.motion = { ...(partial.motion || {}), zoomPulse: parseFloat(saved.zoomPulse) };
         }
 
 
@@ -93,7 +120,6 @@
     }
 
 
-    // will hold a function to remove/stop the visualizer when switching fractals or stopping audio
     let cleanup = null;
 
     let activeUniforms = null;
@@ -102,7 +128,7 @@
     let currentConfig = {
         fractalType: "julia",
         colors: {
-            primary: [0.1608, 0.1176, 0.4902], // #291E7D
+            primary: [0.1608, 0.1176, 0.4902],
             secondary: [0.5294, 0.1765, 0.3255] 
         },
         motion: {
@@ -125,7 +151,6 @@
     };
 
     window.getFractalConfigSnapshot = function () {
-        // deep copy to avoid mutation surprises
         return JSON.parse(JSON.stringify(currentConfig));
     };
 
@@ -134,7 +159,6 @@
         return s ? s.value : "julia";
     };
 
-    // Julia preset definitions (GLOBAL so HTML can access them)
     window.juliaPresets = {
         classic: { cx: 0.0, cy: 0.8 },
         dragon: { cx: 0.37, cy: 0.1 },
@@ -195,19 +219,15 @@
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
         }
 
-        // clean container so old visualizations are removed
         container.innerHTML = "";
 
-        // Creates a WebGL renderer
         const renderer = new THREE.WebGLRenderer({
             antialias: true,
             preserveDrawingBuffer: true
         });
-        // Sets renderer size to match container and appends its canvas to the DOM
         renderer.setSize(container.clientWidth, container.clientHeight);
         container.appendChild(renderer.domElement);
 
-        // Creates a Three.js scene
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(
             60, // FOV
@@ -266,120 +286,125 @@
         // Each shader uses GLSL and the uniforms to draw a fractal that reacts to music
         let fragmentShader = "";
         if (fractalType === "mandelbulb") {
-            // Mandelbulb GLSL fragment shader
             fragmentShader = `
                 precision highp float;
 
                 uniform float iTime, bassLevel, trebleLevel, lfo, zoom, iBoom, speed, pulse, rotation;
                 uniform vec3 iResolution;
 
-                // Mandelbulb distance estimator
+                // palette
+                uniform vec3 primaryColor;
+                uniform vec3 secondaryColor;
+                uniform float rainbowMode;
+
+                // quality controls
+                uniform float raySteps;
+
                 float mandelbulbDE(vec3 pos) {
+                  vec3 z = pos, c = pos;
+                  float dr = 1.0, r = 0.0;
 
-                    // z -> Current point in fractal iteration
-                    // c -> Original position (constant for Mandelbulb formula)
-                    // dr -> Distance estimator derivative. Used for ray marching
-                    // bassImpact = pow(bassLevel, 0.3) * 4.0 -> non-linear bass influence; softens low levels
-                    // power = 8.0 + bassImpact + iBoom*5.0 + sin(...) *2.0 + trebleLevel*1.5 -> controls Mandelbulb exponent dynamically:
-                    //      Base 8.0 -> standard Mandelbulb
-                    //      bassImpact -> makes fractal “puffier” on bass
-                    //      iBoom*5.0 -> emphasizes strong beat hits
-                    //      sin(iTime*0.2 + lfo)*2.0 -> slow oscillation over time
-                    //      trebleLevel*1.5 -> subtle high-frequency influence
-                    vec3 z = pos, c = pos;
-                    float dr = 1.0, r = 0.0;
-                    float bassImpact = pow(bassLevel, 0.3) * 4.0;
-                    float power = 8.0 + bassImpact + iBoom * 5.0 + sin(iTime * 0.2 + lfo) * 2.0 + trebleLevel * 1.5;
+                  float bassImpact = pow(bassLevel, 0.3) * 4.0;
+                  float power = 8.0 + bassImpact + iBoom * 5.0 + sin(iTime * 0.2 + lfo) * 2.0 + trebleLevel * 1.5;
 
-                    // Mandelbulb iteration
-                    // Convert z to spherical coords: r (radius), th (theta), ph (phi)
-                    // zr = pow(r, power-1) -> radius raised to fractal power
-                    // dr -> derivative update for distance estimation
-                    // z = zr * spherical + c -> Mandelbulb iteration
-                    // Iterates 12 times -> moderate detail, balancing performance and quality
-                    for (int i = 0; i < 12; i++) {
-                        r = length(z);
-                        if (r > 4.0) break;
-                        float th = acos(z.z / r), ph = atan(z.y, z.x);
-                        float zr = pow(r, power - 1.0);
-                        dr = pow(r, power - 1.0) * power * dr + 1.0;
-                        float nt = th * power, np = ph * power;
-                        z = zr * vec3(sin(nt) * cos(np), sin(nt) * sin(np), cos(nt)) + c;
-                    }
+                  for (int i = 0; i < 12; i++) {
+                    r = length(z);
+                    if (r > 4.0) break;
+                    float th = acos(z.z / r), ph = atan(z.y, z.x);
+                    float zr = pow(r, power - 1.0);
+                    dr = pow(r, power - 1.0) * power * dr + 1.0;
+                    float nt = th * power, np = ph * power;
+                    z = zr * vec3(sin(nt) * cos(np), sin(nt) * sin(np), cos(nt)) + c;
+                  }
 
-                    // distance estimator used for ray marching
-                    return 0.5 * log(r) * r / dr;
+                  return 0.5 * log(r) * r / dr;
                 }
 
-                // Marches a ray rd from camera ro into the fractal scene
-                float rayMarch(vec3 ro, vec3 rd) {
-                    float t = 0.0;
-                    for (int i = 0; i < 100; i++) {
-                        vec3 p = ro + rd * t;
-                        float d = mandelbulbDE(p);
-                        if (d < 0.001) break; // hit threshold (close enough to surface)
-                        t += d;
-                        if (t > 50.0) break; // far clip distance
-                    }
-                    return t;
+                float rayMarch(vec3 ro, vec3 rd, out float stepsUsed) {
+                  float t = 0.0;
+                  stepsUsed = 0.0;
+
+                  int maxSteps = int(clamp(raySteps, 10.0, 200.0));
+
+                  for (int i = 0; i < 200; i++) {
+                    if (i >= maxSteps) break;
+
+                    vec3 p = ro + rd * t;
+                    float d = mandelbulbDE(p);
+
+                    stepsUsed = float(i);
+
+                    if (d < 0.001) break;
+                    t += d;
+                    if (t > 50.0) break;
+                  }
+                  return t;
+                }
+
+                vec3 rainbow(float t) {
+                  float p = 6.28318 * (t + iTime * 0.05);
+                  return vec3(
+                    0.5 + 0.5 * sin(p + 0.0),
+                    0.5 + 0.5 * sin(p + 2.094),
+                    0.5 + 0.5 * sin(p + 4.188)
+                  );
                 }
 
                 void main() {
-                    // Normalized screen coordinates uv
-                    vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
+                  vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
 
-                    // Adjusted camera zoom
-                    float smoothZoom = 4.0 / (1.0 + 0.2 * bassLevel + 0.1 * iBoom); // smaller music influence
-                    vec3 ro = vec3(0.0, 0.0, smoothZoom);
-                    vec3 rd = normalize(vec3(uv, -1.5));
+                  float smoothZoom = 4.0 / (1.0 + 0.2 * bassLevel + 0.1 * iBoom);
+                  vec3 ro = vec3(0.0, 0.0, smoothZoom);
+                  vec3 rd = normalize(vec3(uv, -1.5));
 
-                    // Adjusted rotation
-                    float ang = iTime * 0.1                // slower base rotation
-                              + trebleLevel * 0.5          // scaled down treble influence
-                              + iBoom * 0.3                // scaled down iBoom influence
-                              + rotation * 0.5;            // scaled down rotation parameter
+                  float ang = iTime * 0.1 + trebleLevel * 0.5 + iBoom * 0.3 + rotation * 0.5;
 
-                    mat3 rotY = mat3(
-                        cos(ang), 0.0, sin(ang),
-                        0.0, 1.0, 0.0,
-                        -sin(ang), 0.0, cos(ang)
-                    );
+                  mat3 rotY = mat3(
+                    cos(ang), 0.0, sin(ang),
+                    0.0, 1.0, 0.0,
+                    -sin(ang), 0.0, cos(ang)
+                  );
 
-                    ro = rotY * ro;
-                    rd = rotY * rd;
+                  ro = rotY * ro;
+                  rd = rotY * rd;
 
-                    // If the ray misses the fractal -> black background
-                    float t = rayMarch(ro, rd);
-                    if (t > 49.9) {
-                        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-                        return;
-                    }
+                  float stepsUsed;
+                  float t = rayMarch(ro, rd, stepsUsed);
 
-                    // Approximates surface normal via finite differences
-                    // eps = 0.001 -> small offset to compute gradient
-                    vec3 p = ro + rd * t;
-                    vec3 eps = vec3(0.001, 0, 0);
-                    vec3 nor = normalize(vec3(
-                        mandelbulbDE(p + eps.xyy) - mandelbulbDE(p - eps.xyy),
-                        mandelbulbDE(p + eps.yxy) - mandelbulbDE(p - eps.yxy),
-                        mandelbulbDE(p + eps.yyx) - mandelbulbDE(p - eps.yyx)
-                    ));
+                  if (t > 49.9) {
+                    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                    return;
+                  }
 
-                    // Simple diffuse lighting using a directional light
-                    vec3 light = normalize(vec3(1.0, 1.0, 1.0));
-                    // diff = Lambertian shading
-                    float diff = clamp(dot(nor, light), 0.0, 1.0);
+                  vec3 p = ro + rd * t;
+                  vec3 eps = vec3(0.001, 0, 0);
+                  vec3 nor = normalize(vec3(
+                    mandelbulbDE(p + eps.xyy) - mandelbulbDE(p - eps.xyy),
+                    mandelbulbDE(p + eps.yxy) - mandelbulbDE(p - eps.yxy),
+                    mandelbulbDE(p + eps.yyx) - mandelbulbDE(p - eps.yyx)
+                  ));
 
-                    vec3 col = vec3(
-                        0.5 + 0.5 * sin(iTime + p.x * 2.0 + iBoom * 3.0),
-                        0.5 + 0.5 * cos(iTime * 1.2 + p.y * 3.0 + bassLevel * 4.0),
-                        diff
-                    );
-                    col *= (diff * 1.3 + 0.2);
-                    col = pow(col, vec3(0.4545)); // gamma correction (≈ 1/2.2)
-                    gl_FragColor = vec4(col * pulse, 1.0);
+                  vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+                  float diff = clamp(dot(nor, lightDir), 0.0, 1.0);
+
+                  // "depth" factor (closer surfaces a bit brighter)
+                  float depth = clamp(1.0 - t / 12.0, 0.0, 1.0);
+
+                  vec3 baseCol = mix(primaryColor, secondaryColor, smoothstep(0.0, 1.0, diff * 0.9 + depth * 0.6));
+
+                  if (rainbowMode > 0.5) {
+                    vec3 rb = rainbow(diff * 0.8 + depth * 0.4);
+                    baseCol = mix(baseCol, rb, 0.85);
+                  }
+
+                  // contrast + gamma-ish
+                  vec3 col = baseCol * (0.25 + 1.25 * diff);
+                  col *= (0.85 + 0.25 * depth);
+                  col = pow(col, vec3(0.4545));
+
+                  gl_FragColor = vec4(col * pulse, 1.0);
                 }
-                `;
+              `;
         } else if (fractalType === "julia") {
             // Julia GLSL fragment shader
             fragmentShader = `
@@ -523,7 +548,6 @@
                             0.5 + 0.5 * sin(p + 4.188)
                         );
 
-                        // anchor rainbow with primary color
                         col = mix(primaryColor, col, 0.85);
                     } else {
                         float rings = sin(30.0 * t + iTime * 0.3);
@@ -552,10 +576,10 @@
 
                 uniform float iTime;
                 uniform float bassLevel;
-                uniform float trebleLevel; // unused but kept for compatibility
+                uniform float trebleLevel;
 
                 uniform float bassStrength;
-                uniform float trebleStrength; // unused
+                uniform float trebleStrength;
                 uniform float iterations;
 
                 uniform vec3 primaryColor;
@@ -566,7 +590,7 @@
                 uniform float rainbowMode; // 0 = off, 1 = on
 
                 void main() {
-                    /* static viewport (NO movement) */
+                    /* static viewport */
                     vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
 
                     /* classic Mandelbrot framing */
@@ -576,7 +600,6 @@
                     /* bass influence */
                     float bass = clamp(bassLevel * bassStrength, 0.0, 1.0);
 
-                    /* 🔥 iteration morphing ONLY */
                     float minIter = 4.0;                // very blobby
                     float maxIter = max(iterations, 6.0);
 
@@ -655,32 +678,26 @@
         light.position.set(3, 3, 5);
         scene.add(light);
 
-        // --- Audio context & analyser (CREATE ONCE, REUSE) ---
         if (!window.__studioAudio) window.__studioAudio = {};
 
         const analyser = audioContext.createAnalyser();
         analyser.fftSize = 2048;
 
-        // Reuse the same MediaElementSourceNode (critical for Firefox)
         if (!window.__studioAudio.source) {
             window.__studioAudio.source = audioContext.createMediaElementSource(audio);
 
-            // This keeps audio audible
             window.__studioAudio.source.connect(audioContext.destination);
         }
 
-        // Always (re)connect analyser for THIS visualizer instance
         try { window.__studioAudio.source.disconnect(analyser); } catch (_) { }
         window.__studioAudio.source.connect(analyser);
 
         const freqData = new Uint8Array(analyser.frequencyBinCount);
 
-        // expose for Save Video
         window.__studioAudio.ctx = audioContext;
         window.__studioAudio.analyser = analyser;
 
 
-        // Updates renderer and camera when the browser window resizes
         function onResize() {
             const w = container.clientWidth;
             const h = container.clientHeight;
@@ -752,20 +769,17 @@
         try {
             saved = (typeof window.__initialProject.settingsJson === "string")
                 ? JSON.parse(window.__initialProject.settingsJson)
-                : window.__initialProject.settingsJson; // already object when using Html.Raw
+                : window.__initialProject.settingsJson;
         } catch (e) {
             console.error("Failed to parse initial settingsJson:", e, window.__initialProject.settingsJson);
         }
 
         if (saved) {
-            // 1) update UI sliders/colors/checkboxes
             applySavedSettingsToUI(saved);
 
-            // 2) convert flat JSON -> nested config and push into renderer config/uniforms
             updateFractalConfig(savedToPartialConfig(saved));
         }
     }
-
 
 
 

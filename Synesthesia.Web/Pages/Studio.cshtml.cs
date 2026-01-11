@@ -131,7 +131,6 @@ namespace Synesthesia.Web.Pages
 
             try
             {
-                // 1) Ensure AudioFile exists
                 var audio = await _db.AudioFiles.FirstOrDefaultAsync(a => a.FilePath == audioPath);
 
                 if (audio == null)
@@ -151,7 +150,6 @@ namespace Synesthesia.Web.Pages
                     await _db.SaveChangesAsync();
                 }
 
-                // 2) Save a "project" snapshot (this is the real value)
                 var project = new FractalProject
                 {
                     UserId = userId,

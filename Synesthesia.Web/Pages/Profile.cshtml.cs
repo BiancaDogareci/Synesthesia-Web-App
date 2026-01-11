@@ -52,7 +52,7 @@ namespace Synesthesia.Web.Pages
             DebugInfo.Add($"User ID: {user.Id}");
             DebugInfo.Add($"Username: {user.UserName}");
 
-            // Get ALL audio files first
+            // Get all audio files first
             var allAudioFiles = await _db.AudioFiles.ToListAsync();
             DebugInfo.Add($"Total audio files in database: {allAudioFiles.Count}");
 
@@ -163,11 +163,10 @@ namespace Synesthesia.Web.Pages
                 var audioId = project.AudioId;
                 var audioFile = project.AudioFile;
 
-                // 1) Delete the project
+                // Delete the project
                 _db.FractalProjects.Remove(project);
 
-                // 2) Decide whether to delete the audio too
-                //    Only delete audio if no other projects reference it (safe behavior)
+                //  Only delete audio if no other projects reference it
                 var otherProjectsUsingAudio = await _db.FractalProjects
                     .AnyAsync(p => p.AudioId == audioId && p.Id != projectId);
 

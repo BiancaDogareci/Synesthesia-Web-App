@@ -5,31 +5,26 @@
 }
 
 <style>
-    /* 1. Make html/body fill the viewport and prevent scroll */
     html, body {
         margin: 0;
         padding: 0;
         height: 100%;
-        overflow: hidden; /* prevent scrolling */
+        overflow: hidden;
     }
 
-    /* 2. Studio stage fills remaining height minus header */
     #studio-stage {
         position: relative;
         width: 100vw;
-        /* height = viewport height minus header height */
         height: calc(100vh - var(--header-height));
         overflow: hidden;
     }
 
-    /* 3. Fractal container fills the studio stage */
     #fractal-container {
         width: 100%;
         height: 100%;
         background: #000;
         overflow: hidden;
     }
-
 
     main {
         flex: 1;
@@ -452,7 +447,6 @@
                 </select>
 
                 <div id="save-actions" style="margin-top:6px; display:none;">
-                    @* Save button (only meaningful if logged in) *@
                     @if (User.Identity?.IsAuthenticated == true)
                     {
                         <form id="saveForm" method="post" asp-page-handler="SaveToProfile" style="margin-top:6px; display:none;">
@@ -469,7 +463,6 @@
                         </form>
                     }
 
-                    @* Login link (only meaningful if logged out) *@
                     @if (User.Identity?.IsAuthenticated != true)
                     {
                         <a id="loginToSaveLink"
@@ -544,9 +537,33 @@
             </div>
 
             <div id="mandelbulb-settings">
-                <!-- future Mandelbulb settings go here -->
-                <p style="color: #ccc; font-size: 0.85rem;">Mandelbulb settings coming soon...</p>
+                <label class="syn-label">Ray Steps</label>
+                <input type="range" min="30" max="200" step="1" value="100" id="bulbRayStepsSlider">
+
+                <label class="syn-label">Bass Strength</label>
+                <input type="range" min="0" max="5" step="0.1" value="1" id="bulbBassSlider">
+
+                <label class="syn-label">Treble Strength</label>
+                <input type="range" min="0" max="5" step="0.1" value="1" id="bulbTrebleSlider">
+
+                <label class="syn-label">Rotation Speed</label>
+                <input type="range" min="0" max="2" step="0.01" value="0.2" id="bulbRotSlider">
+
+                <label class="syn-label">Zoom Pulse</label>
+                <input type="range" min="0" max="0.4" step="0.01" value="0.05" id="bulbZoomPulseSlider">
+
+                <label class="syn-label">Primary Color</label>
+                <input type="color" id="bulbPrimaryColor" value="#291E7D">
+
+                <label class="syn-label">Secondary Color</label>
+                <input type="color" id="bulbSecondaryColor" value="#872D53">
+
+                <label class="syn-label">
+                    <input type="checkbox" id="bulbRainbowToggle">
+                    Rainbow mode
+                </label>
             </div>
+
 
             <div class="settings-info">
                 <div class="settings-divider"></div>
@@ -587,9 +604,70 @@
                 <details data-fractal="mandelbulb">
                     <summary>Mandelbulb Info</summary>
                     <div class="details-body">
-                        <p>3D distance-estimated fractal rendered via ray marching.</p>
+                        <p><strong>About Mandelbulbs:</strong></p>
+                        <p>
+                            The Mandelbulb is a famous <strong>3D fractal</strong> - often described as a “Mandelbrot set in 3D”.
+                            Instead of iterating a complex number in 2D, the Mandelbulb iterates a point in 3D space
+                            using a spherical-coordinate power formula. The result is a volumetric shape with
+                            intricate cavities, ridges, and self-similar detail when you zoom in.
+                        </p>
+
+                        <p>
+                            In this studio, the Mandelbulb is rendered using <strong>distance estimation</strong> and
+                            <strong>ray marching</strong>. For each pixel, a ray is shot into the scene from the camera.
+                            The renderer repeatedly steps forward by an estimated “safe distance” to the surface
+                            until it either hits the fractal (a surface threshold) or gives up after too many steps.
+                            When a hit occurs, the surface normal is approximated from the distance field and lit
+                            with a directional light to reveal depth and form.
+                        </p>
+
+                        <p><strong>Parameters:</strong></p>
+                        <ul>
+                            <li>
+                                <strong>Ray Steps:</strong> Controls how many ray-march steps are allowed per pixel.
+                                Higher values produce cleaner edges, deeper cavities, and more visible detail, but cost more performance.
+                                Lower values render faster but can look “hollow”, noisy, or miss thin features.
+                            </li>
+
+                            <li>
+                                <strong>Bass Strength:</strong> Amplifies how strongly the fractal responds to low-frequency energy.
+                                In this Mandelbulb, bass influences the fractal’s internal dynamics (like the exponent/power and overall motion feel),
+                                so stronger bass typically makes the bulb feel more “alive” — swelling, thickening, or changing character on heavy hits.
+                            </li>
+
+                            <li>
+                                <strong>Treble Strength:</strong> Amplifies the response to high-frequency energy.
+                                Treble tends to add sharper, faster variation to the fractal’s look over time, often perceived as extra shimmer,
+                                flicker, or “sparkle” in the surface lighting and fine structure.
+                            </li>
+
+                            <li>
+                                <strong>Rotation Speed:</strong> Controls how quickly the camera/fractal rotates over time.
+                                A low value creates a slow cinematic spin that shows structure gradually; higher values create a more energetic,
+                                constantly changing view that can feel more reactive to music.
+                            </li>
+
+                            <li>
+                                <strong>Zoom Pulse:</strong> Adds a subtle zoom “breathing” effect that is driven by bass.
+                                A small pulse gives gentle depth movement; higher values create stronger push-pull motion that can feel like the bulb
+                                is pulsing toward and away from the viewer.
+                            </li>
+
+                            <li>
+                                <strong>Primary &amp; Secondary Colors:</strong> Define the core palette for the Mandelbulb.
+                                The renderer blends these colors based on lighting and depth, so surfaces facing the light and closer regions can shift
+                                toward one color while shadowed or deeper areas shift toward the other.
+                            </li>
+
+                            <li>
+                                <strong>Rainbow Mode:</strong> When enabled, the palette is mixed with a time-varying rainbow ramp.
+                                This produces a spectrum-cycling look while still keeping your palette as an “anchor”, so it remains visually consistent
+                                with your chosen style.
+                            </li>
+                        </ul>
                     </div>
                 </details>
+
             </div>
         </div>
 
@@ -629,33 +707,35 @@
         const fractalTypeSelect = document.getElementById('fractalType');
         const infoBlocks = document.querySelectorAll('.settings-info details');
 
-        function updateInfoVisibility() {
-            infoBlocks.forEach(d => {
-                d.style.display =
-                    d.dataset.fractal === fractalTypeSelect.value
-                        ? 'block'
-                        : 'none';
-                d.removeAttribute('open');
-            });
-        }
-
-        updateInfoVisibility();
-        fractalTypeSelect.addEventListener('change', updateInfoVisibility);
-
         const juliaSettings = document.getElementById('julia-settings');
         const mandelbrotSettings = document.getElementById('mandelbrot-settings');
         const mandelbulbSettings = document.getElementById('mandelbulb-settings');
 
-        window.updateFractalSettingsVisibility = function () {
-            const type = fractalTypeSelect.value;
-            juliaSettings.style.display = type === 'julia' ? 'flex' : 'none';
-            mandelbrotSettings.style.display = type === 'mandelbrot' ? 'flex' : 'none';
-            mandelbulbSettings.style.display = type === 'mandelbulb' ? 'flex' : 'none';
+        function updateInfoVisibility() {
+          infoBlocks.forEach(d => {
+            d.style.display = (d.dataset.fractal === fractalTypeSelect.value) ? 'block' : 'none';
+            d.removeAttribute('open');
+          });
         }
 
-        fractalTypeSelect.addEventListener('change', updateFractalSettingsVisibility);
+        window.updateFractalSettingsVisibility = function () {
+          const type = fractalTypeSelect.value;
+          juliaSettings.style.display = type === 'julia' ? 'flex' : 'none';
+          mandelbrotSettings.style.display = type === 'mandelbrot' ? 'flex' : 'none';
+          mandelbulbSettings.style.display = type === 'mandelbulb' ? 'flex' : 'none';
+        };
 
-        updateFractalSettingsVisibility();
+        window.updateInfoVisibility = updateInfoVisibility;
+
+        window.addEventListener('DOMContentLoaded', () => {
+          updateInfoVisibility();
+          window.updateFractalSettingsVisibility();
+        });
+
+        fractalTypeSelect.addEventListener('change', () => {
+          updateInfoVisibility();
+          window.updateFractalSettingsVisibility();
+        });
     </script>
 
     <script>
@@ -691,10 +771,8 @@
 
                     if (saveActions) saveActions.style.display = 'block';
 
-                    // show save button area only after upload
                     if (saveForm) saveForm.style.display = 'block';
 
-                    // reset button state on every upload
                     if (saveBtn) {
                       saveBtn.disabled = false;
                       saveBtn.textContent = 'Save to Profile';
@@ -707,12 +785,10 @@
                     if (audioPathInput) audioPathInput.value = result.audioPath;
                     if (originalFileNameInput) originalFileNameInput.value = result.originalFileName;
 
-                    // show the audio player
                     audioElement.src = uploadedAudioPath;
                     audioElement.style.display = 'block';
                     audioPlaceholder.style.display = 'none';
 
-                    // reset the file input and upload button
                     fileInput.value = '';
                     fileLabel.textContent = 'Choose Audio';
                     uploadBtn.disabled = true;
@@ -742,8 +818,6 @@
               secondaryColor: document.getElementById("secondaryColor").value,
               rainbow: document.getElementById("rainbowToggle").checked,
               juliaPreset: document.getElementById("juliaPreset")?.value || "classic"
-              // If you want to also save the actual Julia constant, uncomment this:
-              // julia: window.getFractalConfigSnapshot?.()?.julia ?? null
             };
           }
 
@@ -757,6 +831,21 @@
               rainbow: document.getElementById("mandelRainbowToggle").checked
             };
           }
+
+          if (ft === "mandelbulb") {
+            return {
+                fractalType: "mandelbulb",
+                raySteps: parseInt(document.getElementById("bulbRayStepsSlider").value, 10),
+                bassStrength: parseFloat(document.getElementById("bulbBassSlider").value),
+                trebleStrength: parseFloat(document.getElementById("bulbTrebleSlider").value),
+                rotationSpeed: parseFloat(document.getElementById("bulbRotSlider").value),
+                zoomPulse: parseFloat(document.getElementById("bulbZoomPulseSlider").value),
+                primaryColor: document.getElementById("bulbPrimaryColor").value,
+                secondaryColor: document.getElementById("bulbSecondaryColor").value,
+                rainbow: document.getElementById("bulbRainbowToggle").checked
+            };
+          }
+
 
           return { fractalType: ft };
         }
@@ -833,6 +922,39 @@
                 colorMode: { rainbow: e.target.checked }
             });
         });
+
+        document.getElementById("bulbRayStepsSlider")?.addEventListener("input", e => {
+          updateFractalConfig({ quality: { raySteps: parseInt(e.target.value, 10) } });
+        });
+
+        document.getElementById("bulbBassSlider")?.addEventListener("input", e => {
+          updateFractalConfig({ motion: { bassStrength: parseFloat(e.target.value) } });
+        });
+
+        document.getElementById("bulbTrebleSlider")?.addEventListener("input", e => {
+          updateFractalConfig({ motion: { trebleStrength: parseFloat(e.target.value) } });
+        });
+
+        document.getElementById("bulbRotSlider")?.addEventListener("input", e => {
+          updateFractalConfig({ motion: { rotationSpeed: parseFloat(e.target.value) } });
+        });
+
+        document.getElementById("bulbZoomPulseSlider")?.addEventListener("input", e => {
+          updateFractalConfig({ motion: { zoomPulse: parseFloat(e.target.value) } });
+        });
+
+        document.getElementById("bulbPrimaryColor")?.addEventListener("input", e => {
+          updateFractalConfig({ colors: { primary: window.hexToRgb01(e.target.value) } });
+        });
+
+        document.getElementById("bulbSecondaryColor")?.addEventListener("input", e => {
+          updateFractalConfig({ colors: { secondary: window.hexToRgb01(e.target.value) } });
+        });
+
+        document.getElementById("bulbRainbowToggle")?.addEventListener("change", e => {
+          updateFractalConfig({ colorMode: { rainbow: e.target.checked } });
+        });
+
     </script>
 
     <script>
@@ -870,14 +992,11 @@
             const settingsJsonInput = document.getElementById("settingsJsonInput");
             const fractalTypeInput = document.getElementById("fractalTypeInput");
 
-            //  ALWAYS set these from DOM (no dependency)
             const ft = document.getElementById("fractalType")?.value || "julia";
             fractalTypeInput.value = ft;
 
-        // Save only the user-editable settings (based on current UI)
             const userSettings = buildUserSettingsForSave();
 
-            // Optional: prevent saving empty settings
             if (!userSettings || Object.keys(userSettings).length === 0) {
               console.error("buildUserSettingsForSave returned empty:", userSettings);
               alert("Could not capture settings to save.");
@@ -886,12 +1005,10 @@
 
             settingsJsonInput.value = JSON.stringify(userSettings);
 
-
-            //  DEBUG (remove later)
-            console.log("Saving project:", {
-              fractalType: fractalTypeInput.value,
-              settingsJsonLen: settingsJsonInput.value?.length
-            });
+            // console.log("Saving project:", {
+            //   fractalType: fractalTypeInput.value,
+            //   settingsJsonLen: settingsJsonInput.value?.length
+            // });
 
             const formData = new FormData(saveForm);
 
@@ -950,20 +1067,17 @@
           if (!window.__studioAudio) window.__studioAudio = {};
           const shared = window.__studioAudio;
 
-          // Create AudioContext if needed
           if (!shared.ctx) {
             shared.ctx = new (window.AudioContext || window.webkitAudioContext)();
           }
 
-          // Resume in Firefox (must be in a user gesture; Save Video click is perfect)
           if (shared.ctx.state === "suspended") {
             await shared.ctx.resume();
           }
 
-          // Create the MediaElementSource only once per <audio>
           if (!shared.source) {
             shared.source = shared.ctx.createMediaElementSource(audioEl);
-            // keep audio audible
+
             shared.source.connect(shared.ctx.destination);
           }
 
@@ -978,23 +1092,17 @@
           window.__isRecordingVideo = true;
 
           try {
-            // Ensure/reuse audio graph
             const shared = await ensureAudioGraph(audioEl);
 
-            // Start audio (this may trigger your play handler, but it's now guarded)
             if (audioEl.paused) await audioEl.play();
 
-            //  Wait 1 frame so the visualizer/canvas is definitely the current one
             await new Promise(requestAnimationFrame);
 
-            //  Grab the canvas AFTER play
             const canvas = getFractalCanvas();
             if (!canvas) throw new Error("Fractal canvas not found.");
 
-            // Capture video from canvas
             const canvasStream = canvas.captureStream(60);
 
-            // Capture audio via WebAudio destination (Firefox-safe)
             const dest = shared.ctx.createMediaStreamDestination();
             shared.source.connect(dest);
 
@@ -1009,7 +1117,7 @@
 
             const recorder = new MediaRecorder(mixedStream, {
               mimeType,
-              videoBitsPerSecond: 45_000_000, // 20 Mbps (good for 1080p)
+              videoBitsPerSecond: 45_000_000, // 45 Mbps
               audioBitsPerSecond: 320_000     // 320 kbps
             });
             const chunks = [];
@@ -1020,12 +1128,10 @@
 
             const stopped = new Promise((resolve) => (recorder.onstop = resolve));
 
-            //  also wait another frame before starting recorder to avoid first-black-frame issues
             await new Promise(requestAnimationFrame);
 
             recorder.start();
 
-            // Stop when audio ends
             await new Promise((resolve) => {
               const handler = () => {
                 audioEl.removeEventListener("ended", handler);
@@ -1037,7 +1143,6 @@
             recorder.stop();
             await stopped;
 
-            // Cleanup connection
             try { shared.source.disconnect(dest); } catch (_) {}
 
             return new Blob(chunks, { type: mimeType });
