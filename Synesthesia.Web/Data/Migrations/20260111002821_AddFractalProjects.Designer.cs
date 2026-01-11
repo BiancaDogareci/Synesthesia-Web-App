@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Synesthesia.Web.Data;
 
@@ -11,9 +12,11 @@ using Synesthesia.Web.Data;
 namespace Synesthesia.Web.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260111002821_AddFractalProjects")]
+    partial class AddFractalProjects
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -271,6 +274,9 @@ namespace Synesthesia.Web.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("AudioFileId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("AudioId")
                         .HasColumnType("uniqueidentifier");
 
@@ -298,7 +304,7 @@ namespace Synesthesia.Web.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AudioId");
+                    b.HasIndex("AudioFileId");
 
                     b.HasIndex("UserId");
 
@@ -309,6 +315,9 @@ namespace Synesthesia.Web.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AudioFileId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("AudioId")
@@ -334,7 +343,7 @@ namespace Synesthesia.Web.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AudioId");
+                    b.HasIndex("AudioFileId");
 
                     b.HasIndex("UserId");
 
@@ -407,9 +416,7 @@ namespace Synesthesia.Web.Data.Migrations
                 {
                     b.HasOne("Synesthesia.Web.Models.AudioFile", "AudioFile")
                         .WithMany("FractalProjects")
-                        .HasForeignKey("AudioId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .HasForeignKey("AudioFileId");
 
                     b.HasOne("Synesthesia.Web.Models.AppUser", "User")
                         .WithMany("FractalProjects")
@@ -426,9 +433,7 @@ namespace Synesthesia.Web.Data.Migrations
                 {
                     b.HasOne("Synesthesia.Web.Models.AudioFile", "AudioFile")
                         .WithMany("SavedVideos")
-                        .HasForeignKey("AudioId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .HasForeignKey("AudioFileId");
 
                     b.HasOne("Synesthesia.Web.Models.AppUser", "User")
                         .WithMany("SavedVideos")

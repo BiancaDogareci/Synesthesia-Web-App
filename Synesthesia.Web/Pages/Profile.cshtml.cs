@@ -30,6 +30,8 @@ namespace Synesthesia.Web.Pages
         public string? Username { get; set; }
         public string? Bio { get; set; }
         public List<AudioFile> AudioFiles { get; set; } = new List<AudioFile>();
+        public List<FractalProject> Projects { get; set; } = new List<FractalProject>();
+
         public List<string>? DebugInfo { get; set; }
 
         public async Task OnGetAsync()
@@ -69,6 +71,15 @@ namespace Synesthesia.Web.Pages
                     .OrderByDescending(a => a.CreatedAt)
                     .ToListAsync();
 
+                Projects = await _db.FractalProjects
+                .Include(p => p.AudioFile)
+                .Where(p => p.UserId == user.Id)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+
+                DebugInfo.Add($"Projects for this user: {Projects.Count}");
+
+
                 DebugInfo.Add($"Query completed. Audio files for this user: {AudioFiles.Count}");
 
                 if (AudioFiles.Count > 0)
@@ -88,45 +99,105 @@ namespace Synesthesia.Web.Pages
             }
         }
 
-        public async Task<IActionResult> OnPostDeleteAudioAsync(System.Guid audioId)
+        //public async Task<IActionResult> OnPostDeleteAudioAsync(System.Guid audioId)
+        //{
+        //    if (!User?.Identity?.IsAuthenticated ?? true)
+        //    {
+        //        return RedirectToPage("/Account/Login", new { area = "Identity" });
+        //    }
+
+        //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        //    try
+        //    {
+        //        var audioFile = await _db.AudioFiles
+        //            .FirstOrDefaultAsync(a => a.Id == audioId && a.UserId == userId);
+
+        //        if (audioFile == null)
+        //        {
+        //            TempData["Error"] = "Audio file not found or you don't have permission to delete it.";
+        //            return RedirectToPage();
+        //        }
+
+        //        // Delete the physical file
+        //        var physicalPath = Path.Combine(_env.WebRootPath, audioFile.FilePath.TrimStart('/'));
+        //        if (System.IO.File.Exists(physicalPath))
+        //        {
+        //            System.IO.File.Delete(physicalPath);
+        //        }
+
+        //        // Delete from database
+        //        _db.AudioFiles.Remove(audioFile);
+        //        await _db.SaveChangesAsync();
+
+        //        TempData["Success"] = "Audio file deleted successfully.";
+        //    }
+        //    catch (System.Exception ex)
+        //    {
+        //        TempData["Error"] = "Failed to delete audio file: " + ex.Message;
+        //    }
+
+        //    return RedirectToPage();
+        //}
+
+        public async Task<IActionResult> OnPostDeleteProjectAsync(System.Guid projectId)
         {
             if (!User?.Identity?.IsAuthenticated ?? true)
-            {
                 return RedirectToPage("/Account/Login", new { area = "Identity" });
-            }
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             try
             {
-                var audioFile = await _db.AudioFiles
-                    .FirstOrDefaultAsync(a => a.Id == audioId && a.UserId == userId);
+                // Load project + associated audio
+                var project = await _db.FractalProjects
+                    .Include(p => p.AudioFile)
+                    .FirstOrDefaultAsync(p => p.Id == projectId && p.UserId == userId);
 
-                if (audioFile == null)
+                if (project == null)
                 {
-                    TempData["Error"] = "Audio file not found or you don't have permission to delete it.";
+                    TempData["Error"] = "Project not found or you don't have permission to delete it.";
                     return RedirectToPage();
                 }
 
-                // Delete the physical file
-                var physicalPath = Path.Combine(_env.WebRootPath, audioFile.FilePath.TrimStart('/'));
-                if (System.IO.File.Exists(physicalPath))
+                var audioId = project.AudioId;
+                var audioFile = project.AudioFile;
+
+                // 1) Delete the project
+                _db.FractalProjects.Remove(project);
+
+                // 2) Decide whether to delete the audio too
+                //    Only delete audio if no other projects reference it (safe behavior)
+                var otherProjectsUsingAudio = await _db.FractalProjects
+                    .AnyAsync(p => p.AudioId == audioId && p.Id != projectId);
+
+                if (!otherProjectsUsingAudio && audioFile != null)
                 {
-                    System.IO.File.Delete(physicalPath);
+                    // delete physical file
+                    if (!string.IsNullOrWhiteSpace(audioFile.FilePath))
+                    {
+                        var physicalPath = Path.Combine(_env.WebRootPath, audioFile.FilePath.TrimStart('/'));
+                        if (System.IO.File.Exists(physicalPath))
+                            System.IO.File.Delete(physicalPath);
+                    }
+
+                    // delete audio row
+                    _db.AudioFiles.Remove(audioFile);
                 }
 
-                // Delete from database
-                _db.AudioFiles.Remove(audioFile);
                 await _db.SaveChangesAsync();
 
-                TempData["Success"] = "Audio file deleted successfully.";
+                TempData["Success"] = otherProjectsUsingAudio
+                    ? "Project deleted. Audio kept (used by other projects)."
+                    : "Project and audio deleted successfully.";
             }
             catch (System.Exception ex)
             {
-                TempData["Error"] = "Failed to delete audio file: " + ex.Message;
+                TempData["Error"] = "Failed to delete: " + ex.Message;
             }
 
             return RedirectToPage();
         }
+
     }
 }

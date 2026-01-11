@@ -2,6 +2,87 @@
     const audio = document.getElementById("audio");
     const fractalSelect = document.getElementById("fractalType");
 
+    window.hexToRgb01 = function (hex) {
+        const v = parseInt(hex.slice(1), 16);
+        return [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255];
+    }
+
+    function clamp(n, min, max) {
+        return Math.min(max, Math.max(min, n));
+    }
+
+    function applySavedSettingsToUI(saved) {
+        const ft = saved?.fractalType || "julia";
+
+        // set dropdown first
+        if (fractalSelect) fractalSelect.value = ft;
+
+        // show correct settings panel (reuse your existing function in Studio.cshtml scripts)
+        // If it's not global, just ignore; UI will still set values.
+        try {
+            if (typeof window.updateFractalSettingsVisibility === "function") {
+                window.updateFractalSettingsVisibility();
+            }
+        } catch (_) { }
+
+        if (ft === "julia") {
+            const iter = document.getElementById("iterSlider");
+            const bass = document.getElementById("bassSlider");
+            const treble = document.getElementById("trebleSlider");
+            const pcol = document.getElementById("primaryColor");
+            const scol = document.getElementById("secondaryColor");
+            const rainbow = document.getElementById("rainbowToggle");
+
+            if (iter && saved.iterations != null) iter.value = clamp(saved.iterations, 50, 800);
+            if (bass && saved.bassStrength != null) bass.value = clamp(saved.bassStrength, 0, 5);
+            if (treble && saved.trebleStrength != null) treble.value = clamp(saved.trebleStrength, 0, 5);
+
+            if (pcol && saved.primaryColor) pcol.value = saved.primaryColor;
+            if (scol && saved.secondaryColor) scol.value = saved.secondaryColor;
+            if (rainbow && saved.rainbow != null) rainbow.checked = !!saved.rainbow;
+        }
+
+        if (ft === "mandelbrot") {
+            const iter = document.getElementById("mandelIterSlider");
+            const bass = document.getElementById("mandelBassSlider");
+            const pcol = document.getElementById("mandelPrimaryColor");
+            const scol = document.getElementById("mandelSecondaryColor");
+            const rainbow = document.getElementById("mandelRainbowToggle");
+
+            if (iter && saved.iterations != null) iter.value = clamp(saved.iterations, 10, 350);
+            if (bass && saved.bassStrength != null) bass.value = clamp(saved.bassStrength, 0, 1.2);
+
+            if (pcol && saved.primaryColor) pcol.value = saved.primaryColor;
+            if (scol && saved.secondaryColor) scol.value = saved.secondaryColor;
+            if (rainbow && saved.rainbow != null) rainbow.checked = !!saved.rainbow;
+        }
+    }
+
+    function savedToPartialConfig(saved) {
+        const ft = saved?.fractalType || "julia";
+
+        const partial = { fractalType: ft };
+
+        if (saved.iterations != null) {
+            partial.quality = { iterations: parseInt(saved.iterations, 10) };
+        }
+
+        partial.motion = {};
+        if (saved.bassStrength != null) partial.motion.bassStrength = parseFloat(saved.bassStrength);
+        if (saved.trebleStrength != null) partial.motion.trebleStrength = parseFloat(saved.trebleStrength);
+
+        partial.colors = {};
+        if (saved.primaryColor) partial.colors.primary = hexToRgb01(saved.primaryColor);
+        if (saved.secondaryColor) partial.colors.secondary = hexToRgb01(saved.secondaryColor);
+
+        if (saved.rainbow != null) {
+            partial.colorMode = { rainbow: !!saved.rainbow };
+        }
+
+        return partial;
+    }
+
+
     // will hold a function to remove/stop the visualizer when switching fractals or stopping audio
     let cleanup = null;
 
@@ -33,6 +114,16 @@
         }
     };
 
+    window.getFractalConfigSnapshot = function () {
+        // deep copy to avoid mutation surprises
+        return JSON.parse(JSON.stringify(currentConfig));
+    };
+
+    window.getFractalType = function () {
+        const s = document.getElementById("fractalType");
+        return s ? s.value : "julia";
+    };
+
     // Julia preset definitions (GLOBAL so HTML can access them)
     window.juliaPresets = {
         classic: { cx: 0.0, cy: 0.8 },
@@ -50,8 +141,10 @@
             colors: { ...currentConfig.colors, ...partialConfig.colors },
             motion: { ...currentConfig.motion, ...partialConfig.motion },
             quality: { ...currentConfig.quality, ...partialConfig.quality },
-            julia: { ...currentConfig.julia, ...partialConfig.julia }
+            julia: { ...currentConfig.julia, ...partialConfig.julia },
+            colorMode: { ...currentConfig.colorMode, ...(partialConfig.colorMode || {}) }
         };
+
 
         if (!activeUniforms) return;
 
@@ -613,8 +706,6 @@
             uniforms.zoom.value = 1.0 + Math.pow(bass, 0.3) * currentConfig.motion.zoomPulse;
             uniforms.rotation.value += currentConfig.motion.rotationSpeed * 0.01;
 
-            console.log(bass, treble);
-
             renderer.render(scene, camera);
         }
 
@@ -637,10 +728,36 @@
 
 
 
-    updateFractalConfig({
-        motion: { bassStrength: 2.5 },
-        colors: { primary: [0.2, 0.9, 0.7] }
-    });
+    if (!window.__initialProject?.settingsJson) {
+        updateFractalConfig({
+            motion: { bassStrength: 2.5 },
+            colors: { primary: [0.2, 0.9, 0.7] }
+        });
+    }
+
+
+    if (window.__initialProject?.settingsJson) {
+        let saved = null;
+
+        try {
+            saved = (typeof window.__initialProject.settingsJson === "string")
+                ? JSON.parse(window.__initialProject.settingsJson)
+                : window.__initialProject.settingsJson; // already object when using Html.Raw
+        } catch (e) {
+            console.error("Failed to parse initial settingsJson:", e, window.__initialProject.settingsJson);
+        }
+
+        if (saved) {
+            // 1) update UI sliders/colors/checkboxes
+            applySavedSettingsToUI(saved);
+
+            // 2) convert flat JSON -> nested config and push into renderer config/uniforms
+            updateFractalConfig(savedToPartialConfig(saved));
+        }
+    }
+
+
+
 
     // Render fractal immediately
     cleanup = window.initVisualizer(fractalSelect.value, "fractal-container");
@@ -660,9 +777,14 @@
     // Old visualizer is cleaned up
     // New visualizer is initialized
     fractalSelect?.addEventListener("change", (ev) => {
+        const type = ev.target.value;
+        updateFractalConfig({ fractalType: type }); // keep state in sync
+
         if (cleanup) cleanup();
-        cleanup = window.initVisualizer(ev.target.value, "fractal-container");
+        cleanup = window.initVisualizer(type, "fractal-container");
     });
+
+
 
     // Before leaving the page, cleanup the visualizer
     window.addEventListener("beforeunload", () => {

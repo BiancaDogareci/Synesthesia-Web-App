@@ -14,5 +14,7 @@ namespace Synesthesia.Web.Models
 
         // 1 audio - many saved videos
         public virtual ICollection<SavedVideo>? SavedVideos { get; set; }
+        public virtual ICollection<FractalProject>? FractalProjects { get; set; }
+
     }
 }

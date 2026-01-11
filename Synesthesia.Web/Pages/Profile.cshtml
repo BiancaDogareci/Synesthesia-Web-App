@@ -187,43 +187,45 @@
     </a>
 
     <div class="audio-history">
-        <h2>Audio History (@Model.AudioFiles.Count files)</h2>
+        <h2>Saved Projects (@Model.Projects.Count)</h2>
 
-        @if (Model.AudioFiles.Count > 0)
+
+        @if (Model.Projects.Count > 0)
         {
-            <div style="background: rgba(0,255,0,0.2); padding: 10px; border-radius: 10px; margin-bottom: 20px;">
-                We have @Model.AudioFiles.Count files! Rendering them now...
-            </div>
-
-            @foreach (var audio in Model.AudioFiles)
+            @foreach (var p in Model.Projects)
             {
                 <div class="audio-item">
                     <div class="audio-info">
-                        <div class="audio-name">@audio.FileName</div>
+                        <div class="audio-name">@p.Title</div>
                         <div class="audio-date">
-                            Uploaded: @(audio.CreatedAt?.ToString("MMM dd, yyyy") ?? "Unknown date")
+                            Audio: @(p.AudioFile?.FileName ?? "Unknown") · Saved: @(p.CreatedAt?.ToString("MMM dd, yyyy") ?? "Unknown date")
                         </div>
                     </div>
+
                     <div class="audio-actions">
-                        <a class="btn-play" asp-page="/Studio" asp-route-audioId="@audio.Id">
+                        <a class="btn-play" asp-page="/Studio" asp-route-projectId="@p.Id">
                             Play
                         </a>
-                        <form method="post" asp-page-handler="DeleteAudio" style="display: inline;">
-                            <input type="hidden" name="audioId" value="@audio.Id" />
-                            <button type="submit" class="btn-delete" onclick="return confirm('Are you sure you want to delete this audio?');">
-                                Delete
-                            </button>
-                        </form>
                     </div>
+
+                    <form method="post" asp-page-handler="DeleteProject" style="display:inline;">
+                        <input type="hidden" name="projectId" value="@p.Id" />
+                        <button type="submit" class="btn-delete"
+                                onclick="return confirm('Delete this project and its audio file?');">
+                            Delete
+                        </button>
+                    </form>
+
                 </div>
             }
         }
         else
         {
             <div class="no-audio">
-                No saved audio files yet. Upload and save audio in the Studio!
+                No saved projects yet. Save one from the Studio first!
             </div>
         }
+
     </div>
 
 </div>

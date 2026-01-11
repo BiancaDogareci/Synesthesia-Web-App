@@ -459,6 +459,10 @@
                             <input type="hidden" id="audioPathInput" name="audioPath" value="" />
                             <input type="hidden" id="originalFileNameInput" name="originalFileName" value="" />
 
+                            <input type="hidden" id="settingsJsonInput" name="settingsJson" value="" />
+                            <input type="hidden" id="fractalTypeInput" name="fractalType" value="" />
+
+
                             <button id="saveBtn" type="submit" class="btn-syn-success" style="width:100%; font-size: 0.85rem;">
                                 Save to Profile
                             </button>
@@ -640,7 +644,7 @@
         const mandelbrotSettings = document.getElementById('mandelbrot-settings');
         const mandelbulbSettings = document.getElementById('mandelbulb-settings');
 
-        function updateFractalSettingsVisibility() {
+        window.updateFractalSettingsVisibility = function () {
             const type = fractalTypeSelect.value;
             juliaSettings.style.display = type === 'julia' ? 'flex' : 'none';
             mandelbrotSettings.style.display = type === 'mandelbrot' ? 'flex' : 'none';
@@ -722,14 +726,38 @@
     </script>
 
     <script>
-        function hexToRgb01(hex) {
-            const v = parseInt(hex.slice(1), 16);
-            return [
-                ((v >> 16) & 255) / 255,
-                ((v >> 8) & 255) / 255,
-                (v & 255) / 255
-            ];
+
+        function buildUserSettingsForSave() {
+          const ft = document.getElementById("fractalType")?.value || "julia";
+
+          if (ft === "julia") {
+            return {
+              fractalType: "julia",
+              iterations: parseInt(document.getElementById("iterSlider").value, 10),
+              bassStrength: parseFloat(document.getElementById("bassSlider").value),
+              trebleStrength: parseFloat(document.getElementById("trebleSlider").value),
+              primaryColor: document.getElementById("primaryColor").value,
+              secondaryColor: document.getElementById("secondaryColor").value,
+              rainbow: document.getElementById("rainbowToggle").checked,
+              // If you want to also save the actual Julia constant, uncomment this:
+              // julia: window.getFractalConfigSnapshot?.()?.julia ?? null
+            };
+          }
+
+          if (ft === "mandelbrot") {
+            return {
+              fractalType: "mandelbrot",
+              iterations: parseInt(document.getElementById("mandelIterSlider").value, 10),
+              bassStrength: parseFloat(document.getElementById("mandelBassSlider").value),
+              primaryColor: document.getElementById("mandelPrimaryColor").value,
+              secondaryColor: document.getElementById("mandelSecondaryColor").value,
+              rainbow: document.getElementById("mandelRainbowToggle").checked
+            };
+          }
+
+          return { fractalType: ft };
         }
+
 
         document.getElementById("iterSlider").addEventListener("input", e => {
             updateFractalConfig({
@@ -751,13 +779,13 @@
 
         document.getElementById("primaryColor").addEventListener("input", e => {
             updateFractalConfig({
-                colors: { primary: hexToRgb01(e.target.value) }
+                colors: { primary: window.hexToRgb01(e.target.value) }
             });
         });
 
         document.getElementById("secondaryColor").addEventListener("input", e => {
             updateFractalConfig({
-                colors: { secondary: hexToRgb01(e.target.value) }
+                colors: { secondary: window.hexToRgb01(e.target.value) }
             });
         });
 
@@ -787,13 +815,13 @@
 
         document.getElementById("mandelPrimaryColor").addEventListener("input", e => {
             updateFractalConfig({
-                colors: { primary: hexToRgb01(e.target.value) }
+                colors: { primary: window.hexToRgb01(e.target.value) }
             });
         });
 
         document.getElementById("mandelSecondaryColor").addEventListener("input", e => {
             updateFractalConfig({
-                colors: { secondary: hexToRgb01(e.target.value) }
+                colors: { secondary: window.hexToRgb01(e.target.value) }
             });
         });
 
@@ -826,18 +854,44 @@
     </script>
 
     <script>
-        const saveForm = document.getElementById('saveForm');
-        const saveBtn = document.getElementById('saveBtn');
+        window.addEventListener("DOMContentLoaded", () => {
+          const saveForm = document.getElementById('saveForm');
+          const saveBtn = document.getElementById('saveBtn');
 
-        if (saveForm) {
+          if (!saveForm) return;
+
           saveForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-
             if (!saveBtn) return;
+
+            const settingsJsonInput = document.getElementById("settingsJsonInput");
+            const fractalTypeInput = document.getElementById("fractalTypeInput");
+
+            //  ALWAYS set these from DOM (no dependency)
+            const ft = document.getElementById("fractalType")?.value || "julia";
+            fractalTypeInput.value = ft;
+
+        // Save only the user-editable settings (based on current UI)
+            const userSettings = buildUserSettingsForSave();
+
+            // Optional: prevent saving empty settings
+            if (!userSettings || Object.keys(userSettings).length === 0) {
+              console.error("buildUserSettingsForSave returned empty:", userSettings);
+              alert("Could not capture settings to save.");
+              return;
+            }
+
+            settingsJsonInput.value = JSON.stringify(userSettings);
+
+
+            //  DEBUG (remove later)
+            console.log("Saving project:", {
+              fractalType: fractalTypeInput.value,
+              settingsJsonLen: settingsJsonInput.value?.length
+            });
 
             const formData = new FormData(saveForm);
 
-            // prevent double-clicks and show progress
             const oldText = saveBtn.textContent;
             saveBtn.disabled = true;
             saveBtn.textContent = 'Saving...';
@@ -852,7 +906,7 @@
 
               if (result.success) {
                 saveBtn.textContent = '✓ Saved to Profile';
-                saveBtn.disabled = true; // stays disabled until next upload
+                saveBtn.disabled = true;
               } else {
                 saveBtn.textContent = oldText;
                 saveBtn.disabled = false;
@@ -865,8 +919,9 @@
               alert('Save failed.');
             }
           });
-        }
+        });
     </script>
+
 
     <script>
         const saveVideoBtn = document.getElementById('saveVideoBtn');
@@ -1012,6 +1067,13 @@
             }
           });
         }
+    </script>
+
+    <script>
+        window.__initialProject = {
+          fractalType: "@(Model.ProjectFractalType ?? "")",
+          settingsJson: @Html.Raw(string.IsNullOrEmpty(Model.ProjectSettingsJson) ? "null" : Model.ProjectSettingsJson)
+        };
     </script>
 
 

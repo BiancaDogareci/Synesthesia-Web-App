@@ -38,12 +38,27 @@ namespace Synesthesia.Web.Pages
         public Guid? CurrentAudioId { get; set; }
         public bool IsCurrentAudioSaved { get; set; }
         public string? OriginalFileName => AudioPath != null ? System.IO.Path.GetFileName(AudioPath) : null; // filename from AudioPath (unique gibblerish)
-
-
+        public string? ProjectSettingsJson { get; set; }
+        public string? ProjectFractalType { get; set; }
 
         // Runs when the page is first loaded
-        public async Task OnGetAsync(Guid? audioId)
+        public async Task OnGetAsync(Guid? audioId, Guid? projectId)
         {
+            if (projectId.HasValue)
+            {
+                var project = await _db.FractalProjects
+                    .Include(p => p.AudioFile)
+                    .FirstOrDefaultAsync(p => p.Id == projectId.Value);
+
+                if (project != null)
+                {
+                    AudioPath = project.AudioFile?.FilePath;
+                    ProjectSettingsJson = project.SettingsJson;
+                    ProjectFractalType = project.FractalType;
+                }
+                return;
+            }
+
             if (audioId.HasValue)
             {
                 var audioFile = await _db.AudioFiles
@@ -95,42 +110,65 @@ namespace Synesthesia.Web.Pages
             return new JsonResult(new { success = true, audioPath, originalFileName = audioFile.FileName });
         }
 
-        public async Task<IActionResult> OnPostSaveToProfileAsync(string audioPath, string originalFileName)
+        public async Task<IActionResult> OnPostSaveToProfileAsync(
+            string audioPath,
+            string originalFileName,
+            string fractalType,
+            string settingsJson,
+            string? title
+        )
         {
             if (!User?.Identity?.IsAuthenticated ?? true)
-                return new JsonResult(new { success = false, message = "You must be logged in to save audio to your profile." });
+                return new JsonResult(new { success = false, message = "You must be logged in." });
 
             if (string.IsNullOrWhiteSpace(audioPath) || string.IsNullOrWhiteSpace(originalFileName))
                 return new JsonResult(new { success = false, message = "Please upload an audio file first." });
+
+            if (string.IsNullOrWhiteSpace(fractalType) || string.IsNullOrWhiteSpace(settingsJson))
+                return new JsonResult(new { success = false, message = "Missing fractal settings." });
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             try
             {
-                // If already exists, treat as success (idempotent)
-                var existing = await _db.AudioFiles.FirstOrDefaultAsync(a => a.FilePath == audioPath);
-                if (existing != null)
-                    return new JsonResult(new { success = true, alreadySaved = true });
+                // 1) Ensure AudioFile exists
+                var audio = await _db.AudioFiles.FirstOrDefaultAsync(a => a.FilePath == audioPath);
 
-                var ext = Path.GetExtension(originalFileName);
-                var format = string.IsNullOrWhiteSpace(ext) ? "unknown" : ext.TrimStart('.').ToLowerInvariant();
+                if (audio == null)
+                {
+                    var ext = Path.GetExtension(originalFileName);
+                    var format = string.IsNullOrWhiteSpace(ext) ? "unknown" : ext.TrimStart('.').ToLowerInvariant();
 
-                var audioRecord = new AudioFile
+                    audio = new AudioFile
+                    {
+                        UserId = userId,
+                        FileName = originalFileName,
+                        FilePath = audioPath,
+                        Format = format
+                    };
+
+                    _db.AudioFiles.Add(audio);
+                    await _db.SaveChangesAsync();
+                }
+
+                // 2) Save a "project" snapshot (this is the real value)
+                var project = new FractalProject
                 {
                     UserId = userId,
-                    FileName = originalFileName,
-                    FilePath = audioPath,
-                    Format = format
+                    AudioId = audio.Id,
+                    Title = string.IsNullOrWhiteSpace(title) ? $"{fractalType} - {DateTime.Now:yyyy-MM-dd HH:mm}" : title,
+                    FractalType = fractalType,
+                    SettingsJson = settingsJson
                 };
 
-                _db.AudioFiles.Add(audioRecord);
+                _db.FractalProjects.Add(project);
                 await _db.SaveChangesAsync();
 
-                return new JsonResult(new { success = true, alreadySaved = false });
+                return new JsonResult(new { success = true, projectId = project.Id });
             }
             catch (Exception ex)
             {
-                return new JsonResult(new { success = false, message = "Failed to save audio: " + ex.Message });
+                return new JsonResult(new { success = false, message = "Failed to save: " + ex.Message });
             }
         }
 

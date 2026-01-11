@@ -10,5 +10,7 @@ namespace Synesthesia.Web.Models
         // Relationships 1-M
         public virtual ICollection<AudioFile>? AudioFiles { get; set; }
         public virtual ICollection<SavedVideo>? SavedVideos { get; set; }
+        public virtual ICollection<FractalProject>? FractalProjects { get; set; }
+
     }
 }
