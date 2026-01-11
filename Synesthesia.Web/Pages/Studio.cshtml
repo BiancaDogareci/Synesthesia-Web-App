@@ -934,7 +934,7 @@
             if (!canvas) throw new Error("Fractal canvas not found.");
 
             // Capture video from canvas
-            const canvasStream = canvas.captureStream(30);
+            const canvasStream = canvas.captureStream(60);
 
             // Capture audio via WebAudio destination (Firefox-safe)
             const dest = shared.ctx.createMediaStreamDestination();
@@ -949,7 +949,11 @@
             if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = "video/webm;codecs=vp8,opus";
             if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = "video/webm";
 
-            const recorder = new MediaRecorder(mixedStream, { mimeType });
+            const recorder = new MediaRecorder(mixedStream, {
+              mimeType,
+              videoBitsPerSecond: 45_000_000, // 20 Mbps (good for 1080p)
+              audioBitsPerSecond: 320_000     // 320 kbps
+            });
             const chunks = [];
 
             recorder.ondataavailable = (e) => {
