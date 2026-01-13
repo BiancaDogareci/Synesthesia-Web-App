@@ -1,15 +1,17 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
-using System.IO;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Synesthesia.Web.Models;
+using System;
+using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace Synesthesia.Web.Areas.Identity.Pages.Account.Manage
 {
+    [ExcludeFromCodeCoverage]
     public partial class IndexModel : PageModel
     {
         private readonly UserManager<AppUser> _userManager;
