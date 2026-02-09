@@ -1,6 +1,7 @@
-# Synesthesia – Audio-Reactive Fractal Visualizer
+# Synesthesia | Audio-Reactive Fractal Visualizer
 
-**Synesthesia** is a web-based audio-visual platform that generates real-time **2D and 3D fractal visualizations** synchronized with music.  
+**Synesthesia** is a web-based audio-visual platform that generates real-time **2D and 3D fractal visualizations** synchronized with music. 
+
 The application analyzes audio signals using **FFT** in the browser and maps frequency data (bass, treble, peaks) to visual parameters such as zoom, rotation, color, and pulsation.
 
 ![](./docs/pptx_imgs/synesthesia_main_page.png)
@@ -79,7 +80,7 @@ The application analyzes audio signals using **FFT** in the browser and maps fre
 
 ### Testing Strategy
 - **Unit testing**
-  - Backend logic (C# – xUnit)
+  - Backend logic (C# - xUnit)
 - **Integration testing**
   - Authentication
   - Data persistence
@@ -98,3 +99,4 @@ The application analyzes audio signals using **FFT** in the browser and maps fre
   - Menu responsiveness
   - Fractal switching without memory leaks
 - Cross-browser testing (Chrome, Edge, Firefox)
+
